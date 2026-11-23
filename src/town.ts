@@ -122,11 +122,24 @@ const DIAGONALS = [-3, -1].map((k) => (k * Math.PI) / 4);
 // Seats at the benches' centres. The bench's long axis runs tangent to the fountain, so its seat faces
 // the fountain along (-cos a, -sin a); `yaw` is the camera yaw looking that way (fwd = (-sin yaw, -cos yaw)).
 // `stand` is 3.14 from the fountain: clear of both its collider (3.0 with the player radius) and the bench's (3.275).
-export const BENCHES = DIAGONALS.map((a) => ({
+export type Seat = { at: Vec2; yaw: number; stand: Vec2 };
+const BENCHES: Seat[] = DIAGONALS.map((a) => ({
   at: around([0, 0], 4, a),
   yaw: Math.atan2(Math.cos(a), Math.sin(a)),
   stand: around([0, 0], 3.14, a),
 }));
+
+// The campfire's three log seats and its stool sit on a ring of radius 2, facing the fire. The plaza side stays open.
+const FIRE_ANGLES = [-1, 1, 3].map((k) => (k * Math.PI) / 4);
+const STOOL_ANGLE = Math.PI;
+// `stand` is behind the seat, away from the fire: the log's collider reaches 2.4 from the fire, plus the player's radius.
+const FIRE_SEATS: Seat[] = [...FIRE_ANGLES, STOOL_ANGLE].map((a) => ({
+  at: around(CAMPFIRE, 2, a),
+  yaw: Math.atan2(Math.cos(a), Math.sin(a)),
+  stand: around(CAMPFIRE, 3.05, a),
+}));
+
+export const SEATS: Seat[] = [...BENCHES, ...FIRE_SEATS];
 
 const WATER_Y = 0.37; // the fountain's water surface (0.14 x 2.5) plus a hair
 
@@ -162,11 +175,8 @@ const PROP_LIST: Prop[] = [
   // The gap at z 12 holds the lane lanterns.
   ...[-1.65, 1.65].flatMap((x) => [10.25, 13.75, 17.25].map((z): Prop => ({ kind: "hedge", at: [x, z] }))),
   // The log seats leave the side facing the plaza open.
-  ...[-1, 1, 3].map((k): Prop => {
-    const a = (k * Math.PI) / 4;
-    return { kind: "log", at: around(CAMPFIRE, 2, a), rot: -a - Math.PI / 2 };
-  }),
-  { kind: "stool", at: around(CAMPFIRE, 2, Math.PI) },
+  ...FIRE_ANGLES.map((a): Prop => ({ kind: "log", at: around(CAMPFIRE, 2, a), rot: -a - Math.PI / 2 })),
+  { kind: "stool", at: around(CAMPFIRE, 2, STOOL_ANGLE) },
   ...[-1, 1].flatMap((side): Prop[] => [
     { kind: "fence", at: [side * 21.25, -2.5] },
     { kind: "fence-gate", at: [side * 21.25, 0] },

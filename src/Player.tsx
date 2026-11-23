@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Vector3 } from "three";
-import { BENCHES, TOWN, keepClear, live } from "./town";
+import { SEATS, TOWN, keepClear, live, type Seat } from "./town";
 import { night } from "./theme";
 import { updateSound } from "./Sound";
 import { FOUNTAIN_AT } from "./Fountain";
@@ -19,8 +19,8 @@ const GRAVITY = 14; // stronger than real so the hop feels snappy, not floaty
 const LAND_DIP = 0.08; // the eye sinks this far on landing, then springs back
 const SEAT_EYE = EYE * 0.75; // seated eye height: the seat top is 0.56
 const SEAT_PITCH = -0.05;
-const SEAT_REACH = 1.8; // how close to a bench centre offers the seat
-const SIT_TIME = 0.6; // seconds to ease onto or off the bench
+const SEAT_REACH = 1.8; // how close to a seat centre offers it
+const SIT_TIME = 0.6; // seconds to ease onto or off the seat
 const KEYS: Record<string, string> = {
   w: "forward", arrowup: "forward", s: "back", arrowdown: "back",
   a: "left", arrowleft: "left", d: "right", arrowright: "right",
@@ -29,7 +29,7 @@ const KEYS: Record<string, string> = {
 export type SeatPrompt = "sit" | "stand" | null;
 type Pose = { x: number; z: number; yaw: number; pitch: number; eye: number };
 
-/** Sit or stand at the nearest bench: the HUD prompt calls this (E and Esc do the same). */
+/** Sit or stand at the nearest seat: the HUD prompt calls this (E and Esc do the same). */
 export const seat = { toggle: () => {} };
 
 /** First-person visitor: click to lock the mouse and look around, WASD or arrows to walk.
@@ -40,8 +40,8 @@ export default function Player({ onSeat }: { onSeat: (s: SeatPrompt) => void }) 
   const pitch = useRef(-0.08);
   const held = useRef(new Set<string>());
   const air = useRef({ y: 0, vy: 0, dip: 0 }); // height above ground, vertical speed, landing dip
-  const sit = useRef<{ bench: (typeof BENCHES)[number]; down: boolean; t: number; from: Pose; to: Pose } | null>(null);
-  const near = useRef<(typeof BENCHES)[number] | null>(null);
+  const sit = useRef<{ bench: Seat; down: boolean; t: number; from: Pose; to: Pose } | null>(null);
+  const near = useRef<Seat | null>(null);
   const prompt = useRef<SeatPrompt>(null);
   const camera = useThree((s) => s.camera);
   const canvas = useThree((s) => s.gl.domElement);
@@ -49,7 +49,7 @@ export default function Player({ onSeat }: { onSeat: (s: SeatPrompt) => void }) 
   useEffect(() => {
     camera.rotation.order = "YXZ";
     // Ease from where the camera is now to `to`; each press restarts from the current pose, so it can interrupt.
-    const go = (bench: (typeof BENCHES)[number], down: boolean, to: Pose) => {
+    const go = (bench: Seat, down: boolean, to: Pose) => {
       const from = { x: pos.current.x, z: pos.current.z, yaw: yaw.current, pitch: pitch.current, eye: camera.position.y };
       sit.current = { bench, down, t: 0, from, to };
       held.current.clear();
@@ -173,8 +173,12 @@ export default function Player({ onSeat }: { onSeat: (s: SeatPrompt) => void }) 
       keepClear(p, RADIUS);
     }
 
-    let nb: (typeof BENCHES)[number] | null = null;
-    if (!sit.current) for (const b of BENCHES) if (Math.hypot(p.x - b.at[0], p.z - b.at[1]) < SEAT_REACH) nb = b;
+    let nb: Seat | null = null;
+    let nearest = SEAT_REACH;
+    if (!sit.current) for (const b of SEATS) {
+      const d = Math.hypot(p.x - b.at[0], p.z - b.at[1]);
+      if (d < nearest) { nearest = d; nb = b; }
+    }
     near.current = nb;
     const want: SeatPrompt = sit.current ? (sit.current.down ? "stand" : null) : nb ? "sit" : null;
     if (want !== prompt.current) { prompt.current = want; onSeat(want); }
