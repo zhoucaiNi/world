@@ -3,6 +3,10 @@
 // handing over to a guitar loop at the campfire; the fire crackle gets louder and brighter
 // up close, the fountain splashes only within about 10 m of it; birds are an occasional quiet snippet by day, crickets a quiet bed at night.
 // Browsers only allow audio after a user gesture, so it starts on the first click or keypress.
+// When the radio (radio.zhoucai.me) is playing, the world plays the same station instead of its own music
+// and turns everything else down (see radioStream.ts).
+
+import { followRadio } from "./radioStream";
 
 type Mix = { fire: number; fountain: number; night: number }; // fire, fountain: 0..1 closeness
 type Play =
@@ -48,6 +52,9 @@ const requested = new Set<Layer>();
 let fireLevel = 0; // 0..1, how close the visitor is to the fire
 let fountainLevel = 0;
 let nightLevel = 0;
+let radioOn = false; // the radio is playing in the world
+const MUSIC: Layer[] = ["musicDay", "musicNight", "guitar"];
+const RADIO_DUCK = 0.35; // everything but the radio plays at this fraction while it is on
 
 const rand = ([min, max]: [number, number]) => min + Math.random() * (max - min);
 
@@ -120,7 +127,8 @@ function apply(smooth = 0.3) {
   const mix: Mix = { fire: fireLevel, fountain: fountainLevel, night: nightLevel };
   for (const layer of ALL) {
     const { peak, level }: LayerSpec = LAYERS[layer];
-    const v = level(mix);
+    // The radio replaces the world's own music and sits on top of the rest, which dips.
+    const v = level(mix) * (radioOn ? (MUSIC.includes(layer) ? 0 : RADIO_DUCK) : 1);
     // Fetch a layer only once it first becomes audible: a daytime visit never downloads the
     // night music, and the fire and guitar wait until you head toward the campfire.
     if (v > 0.001 && !requested.has(layer)) {
@@ -148,11 +156,17 @@ export function updateSound(fireDistance: number, fountainDistance: number, nigh
   apply();
 }
 
+const radio = followRadio({
+  level: () => (muted ? 0 : volumes.master * volumes.music),
+  onPlaying: (on) => { radioOn = on; apply(1); },
+});
+
 export function getVolumes() { return { ...volumes }; }
 
 export function setVolume(channel: Channel, value: number) {
   volumes[channel] = Math.min(Math.max(value, 0), 1);
   try { localStorage.setItem("world-volumes", JSON.stringify(volumes)); } catch { /* storage unavailable */ }
+  radio.refresh();
   if (!ctx) return;
   if (channel === "master") { if (!muted) master.gain.setTargetAtTime(volumes.master, ctx.currentTime, 0.05); }
   else apply(0.05);
@@ -163,6 +177,7 @@ export function isMuted() { return muted; }
 export function setMuted(m: boolean) {
   muted = m;
   try { localStorage.setItem("world-sound", m ? "off" : "on"); } catch { /* storage unavailable */ }
+  radio.refresh();
   if (m) { if (ctx) master.gain.setTargetAtTime(0, ctx.currentTime, 0.05); }
   else { start(); if (ctx) master.gain.setTargetAtTime(volumes.master, ctx.currentTime, 0.05); }
 }
