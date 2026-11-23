@@ -10,7 +10,42 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito:wght@500;700&family=Young+Serif&family=Instrument+Sans:wght@400;600&display=swap" />
   </head>
   <body>
+    <div id="boot" aria-live="polite">
+      <div class="boot-card">
+        <div class="boot-title">Loading Zhoucai's World</div>
+        <div class="boot-text">The town is waking up…</div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <style>
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: var(--page);
+        z-index: 9999;
+      }
+      .boot-card {
+        padding: 16px 20px;
+        border-radius: 16px;
+        background: rgba(255, 250, 244, 0.9);
+        border: 1px solid rgba(201, 115, 90, 0.18);
+        box-shadow: 0 8px 24px rgba(120, 80, 60, 0.18);
+        text-align: center;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        color: #5a4036;
+      }
+      .boot-title {
+        font-weight: 700;
+        font-size: 16px;
+      }
+      .boot-text {
+        margin-top: 6px;
+        font-size: 14px;
+        opacity: 0.8;
+      }
+    </style>
   </body>
 </html>
