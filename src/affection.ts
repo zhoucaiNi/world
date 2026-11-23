@@ -1,8 +1,9 @@
 import { useSyncExternalStore } from "react";
 
-// How fond the shiba is of the visitor, 0..100. It starts at 50, each pet adds 5, and every full day without a pet
-// takes off 1. Kept in a cookie so it survives visits. Only the moments are stored (the value as of the last pet, and
-// when you first pet it), and the decay is worked out from the clock, so nothing has to run while the page is closed.
+// How fond the shiba is of the visitor, 0..100. It starts at 50. Only the first pet of each day counts, for +5, and every
+// day that passes without a pet takes off 1. A day is a calendar day by the visitor's clock. Kept in a cookie so it
+// survives visits. Only the moments are stored (the value as of the last pet, and when you first pet it), and the decay is
+// worked out from the clock, so nothing has to run while the page is closed.
 const NAME = "world-dog";
 const START = 50;
 const STEP = 5;
@@ -35,36 +36,53 @@ function write(s: Saved) {
   } catch { /* cookies blocked: it still works for this visit */ }
 }
 
-/** The value now: one point off for each full day since it was last set (a clock set back counts as no time). */
+/** Which calendar day (by the visitor's clock) a moment falls on. */
+const dayOf = (t: number) => Math.floor((t - new Date(t).getTimezoneOffset() * 60000) / DAY);
+
+/** The value now: 1 point off for each whole day that passed without a pet (a clock set back counts as no time).
+ *  After a pet, the day of that pet doesn't count; before the first pet, the day you arrived does. */
 export function affectionAt(s: Saved, now: number) {
-  return Math.min(MAX, Math.max(0, s.v - Math.floor(Math.max(0, now - s.s) / DAY)));
+  const missed = Math.max(0, dayOf(now) - dayOf(s.s) - (s.f !== null ? 1 : 0));
+  return Math.min(MAX, Math.max(0, s.v - missed));
 }
+
+/** Already petted today, so another pet will not add to it. */
+const pettedToday = (s: Saved, now: number) => s.f !== null && dayOf(s.s) === dayOf(now);
 
 // First visit: start at 50 from now. Later visits write it back, which also renews the cookie's lifetime.
 let saved: Saved = read() ?? { v: START, s: Date.now(), f: null };
 write(saved);
 
-export type Affection = { value: number; firstPet: number | null; pets: number };
-let snapshot: Affection = { value: affectionAt(saved, Date.now()), firstPet: saved.f, pets: 0 };
+/** `pets` counts the pets that added points (it restarts the "+5" animation); `happyToday` is true once today's pet is in. */
+export type Affection = { value: number; firstPet: number | null; pets: number; happyToday: boolean };
+const view = (pets: number): Affection => {
+  const now = Date.now();
+  return { value: affectionAt(saved, now), firstPet: saved.f, pets, happyToday: pettedToday(saved, now) };
+};
+let snapshot = view(0);
 const listeners = new Set<() => void>();
 
-function publish(petted: boolean) {
-  const value = affectionAt(saved, Date.now());
-  if (!petted && value === snapshot.value) return;
-  snapshot = { value, firstPet: saved.f, pets: snapshot.pets + (petted ? 1 : 0) };
+function publish(gained = false) {
+  const next = view(snapshot.pets + (gained ? 1 : 0));
+  if (!gained && next.value === snapshot.value && next.happyToday === snapshot.happyToday) return;
+  snapshot = next;
   listeners.forEach((l) => l());
 }
 
-/** One pet: +5 on top of whatever it has decayed to, capped at 100. Remembers when you first did it. */
+/** A pet. The first one each day adds 5 (capped at 100) to what it has decayed to, and remembers when you first did it;
+ *  further pets that day do nothing here (the dog still enjoys them). Returns whether it added points. */
 export function petDog() {
   const now = Date.now();
+  if (pettedToday(saved, now)) return false;
   saved = { v: Math.min(MAX, affectionAt(saved, now) + STEP), s: now, f: saved.f ?? now };
   write(saved);
   publish(true);
+  return true;
 }
 
-// A tab left open across midnight should show the decay when it is looked at again.
-document.addEventListener("visibilitychange", () => { if (!document.hidden) publish(false); });
+// A tab left open across midnight should show the new day (and the decay) without a reload.
+document.addEventListener("visibilitychange", () => { if (!document.hidden) publish(); });
+setInterval(publish, 60_000);
 
 export const useAffection = () =>
   useSyncExternalStore(

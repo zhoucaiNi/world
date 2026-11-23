@@ -119,14 +119,15 @@ h1, h2 { font-family: var(--display); font-weight: var(--display-weight); color:
   font: 600 12px var(--body); opacity: 0; transition: opacity 150ms ease;
 }
 .pet-prompt.show { opacity: 1; }
-/* How fond the shiba is of you (affection.ts): shown while you are looking at it. */
+/* How fond the shiba is of you (affection.ts): always on screen, under the clock. */
 .affection {
-  position: fixed; left: 50%; top: calc(50% + 58px); transform: translateX(-50%); pointer-events: none;
-  display: flex; align-items: center; gap: 7px; padding: 5px 12px 5px 9px; border-radius: 999px; white-space: nowrap;
+  position: fixed; top: 62px; left: 50%; transform: translateX(-50%); z-index: 45; pointer-events: none;
+  display: flex; align-items: center; gap: 7px; height: 28px; box-sizing: border-box; padding: 0 12px 0 9px; border-radius: 999px; white-space: nowrap;
   background: var(--card); color: var(--ink); border: 1px solid var(--card-line); box-shadow: var(--card-shadow);
-  font: 700 12px var(--body); font-variant-numeric: tabular-nums; opacity: 0; transition: opacity 150ms ease;
+  font: 700 12px var(--body); font-variant-numeric: tabular-nums;
 }
-.affection.show { opacity: 1; }
+/* Narrow: the clock tucks under the buttons, so this goes under the clock. */
+@media (max-width: 600px) { .affection { top: 110px; left: auto; right: 14px; transform: none; } }
 .affection svg { fill: #f29bb0; flex: none; }
 .affection-bar { width: 64px; height: 6px; border-radius: 3px; background: var(--card-line); overflow: hidden; }
 .affection-bar i { display: block; height: 100%; background: #f29bb0; border-radius: 3px; transition: width 300ms ease; }
