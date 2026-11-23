@@ -227,3 +227,10 @@ h1, h2 { font-family: var(--display); font-weight: var(--display-weight); color:
 }
 /* Keep the project card clear of the stick on phones. */
 @media (pointer: coarse) { .panel { bottom: calc(190px + env(safe-area-inset-bottom)); } }
+
+@media (pointer: coarse) {
+  .joystick {
+    left: auto;
+    right: calc(20px + env(safe-area-inset-right));
+  }
+}
