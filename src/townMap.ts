@@ -1,5 +1,4 @@
 import { FACING, ISLAND_RADIUS, MODULE, PROPS, TOWN, TREES, type Vec2 } from "./town";
-import { projectById } from "./projects";
 
 export const VIEW = ISLAND_RADIUS + 1.5; // world units from the map's centre to its edge
 const ISLAND = ISLAND_RADIUS + 0.6;
@@ -68,7 +67,7 @@ export function drawTownMap(size: number, scale: number, layers: number = MAP_LA
     ctx.globalAlpha = parseFloat(token("--map-house-alpha")) || 1;
     for (const h of TOWN.houses) {
       rect(ctx, h.at, h.width * MODULE, h.depth * MODULE, FACING[h.facing].yaw);
-      ctx.fillStyle = projectById(h.project).color;
+      ctx.fillStyle = h.color;
       ctx.fill();
       ctx.stroke();
     }

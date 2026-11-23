@@ -1,8 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Vector3 } from "three";
-import { projectById, type Project } from "./projects";
-import { BENCHES, TOWN, doorPoint, keepClear, live } from "./town";
+import { BENCHES, TOWN, keepClear, live } from "./town";
 import { night } from "./theme";
 import { updateSound } from "./Sound";
 import { FOUNTAIN_AT } from "./Fountain";
@@ -35,12 +34,11 @@ export const seat = { toggle: () => {} };
 
 /** First-person visitor: click to lock the mouse and look around, WASD or arrows to walk.
  *  Touch screens drag to look, since they can't lock a pointer. */
-export default function Player({ onNearby, onSeat }: { onNearby: (p: Project | null) => void; onSeat: (s: SeatPrompt) => void }) {
+export default function Player({ onSeat }: { onSeat: (s: SeatPrompt) => void }) {
   const pos = useRef(new Vector3(TOWN.spawn[0], 0, TOWN.spawn[1]));
   const yaw = useRef(0); // 0 looks toward -z, north up the lane to the fountain
   const pitch = useRef(-0.08);
   const held = useRef(new Set<string>());
-  const nearbyId = useRef<string | null>(null);
   const air = useRef({ y: 0, vy: 0, dip: 0 }); // height above ground, vertical speed, landing dip
   const sit = useRef<{ bench: (typeof BENCHES)[number]; down: boolean; t: number; from: Pose; to: Pose } | null>(null);
   const near = useRef<(typeof BENCHES)[number] | null>(null);
@@ -180,15 +178,6 @@ export default function Player({ onNearby, onSeat }: { onNearby: (p: Project | n
     near.current = nb;
     const want: SeatPrompt = sit.current ? (sit.current.down ? "stand" : null) : nb ? "sit" : null;
     if (want !== prompt.current) { prompt.current = want; onSeat(want); }
-
-    // Which door are we standing at?
-    let found: Project | null = null;
-    for (const h of TOWN.houses) {
-      const [fx, fz] = doorPoint(h);
-      if (Math.hypot(p.x - fx, p.z - fz) < 1.8) { found = projectById(h.project); break; }
-    }
-    const id = found?.id ?? null;
-    if (id !== nearbyId.current) { nearbyId.current = id; onNearby(found); }
 
     updateSound(
       Math.hypot(p.x - TOWN.campfire[0], p.z - TOWN.campfire[1]),
