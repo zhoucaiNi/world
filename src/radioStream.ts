@@ -1,5 +1,5 @@
-// Follows the radio at radio.zhoucai.me. It writes a cookie on *.zhoucai.me with the station, its volume and
-// whether it is playing; when that says "on", this plays the same SomaFM station inside the world.
+// The world's radio. The visitor turns it on and off in the world; it plays inside this page. Which station and how
+// loud come from the cookie radio.zhoucai.me writes on *.zhoucai.me (the radio's own defaults when there is none).
 // A plain <audio> element, as the radio uses: the streams do not send CORS headers, so Web Audio could not read them.
 
 // The radio's lineup. The cookie is readable by every *.zhoucai.me site, so only these ids are ever used in a URL.
@@ -10,20 +10,22 @@ const DEFAULT_VOLUME = 0.7;
 const POLL_MS = 2000;
 const PAUSE_GRACE_MS = 2500; // a station switch pauses briefly; don't un-duck the world for that
 
-type Shared = { channelId: string; volume: number; on: boolean };
+type Station = { channelId: string; volume: number };
 
-function readCookie(): Shared | null {
+function readStation(): Station {
   const part = document.cookie.split("; ").find((c) => c.startsWith("radio="));
-  if (!part) return null;
   try {
-    const v = JSON.parse(decodeURIComponent(part.slice("radio=".length))) as Partial<Shared>;
+    const v = part ? (JSON.parse(decodeURIComponent(part.slice("radio=".length))) as Partial<Station>) : {};
     const channelId = typeof v.channelId === "string" && STATIONS.includes(v.channelId) ? v.channelId : DEFAULT_STATION;
     const volume = typeof v.volume === "number" && v.volume >= 0 && v.volume <= 1 ? v.volume : DEFAULT_VOLUME;
-    return { channelId, volume, on: v.on === true };
+    return { channelId, volume };
   } catch {
-    return null;
+    return { channelId: DEFAULT_STATION, volume: DEFAULT_VOLUME };
   }
 }
+
+const KEY = "world-radio";
+const readOn = () => { try { return localStorage.getItem(KEY) === "on"; } catch { return false; } };
 
 async function fetchStreams(id: string): Promise<string[]> {
   const res = await fetch(`https://api.somafm.com/${id}.pls`);
@@ -43,19 +45,20 @@ type Options = {
   onPlaying: (playing: boolean) => void;
 };
 
-/** Starts following the cookie. `refresh` re-applies the volume after the user changes the mixer. */
+/** `setOn` is the visitor's switch; `refresh` re-applies the volume after they change the mixer. */
 export function followRadio({ level, onPlaying }: Options) {
   const audio = new Audio();
   const streams = new Map<string, string[]>();
-  let state: Shared | null = null;
+  let state: Station = readStation();
+  let on = readOn();
   let loaded = ""; // station currently set as the source
   let mirror = 0;
   let announced = false;
   let pauseTimer = 0;
 
   // A radio set to volume 0 is as good as off: no music, and nothing to duck the world for.
-  const wanted = () => !!state?.on && state.volume > 0 && level() > 0;
-  const volume = () => Math.min(1, (state?.volume ?? 0) * level());
+  const wanted = () => on && state.volume > 0 && level() > 0;
+  const volume = () => Math.min(1, state.volume * level());
   const announce = (playing: boolean) => {
     clearTimeout(pauseTimer);
     if (playing === announced) return;
@@ -88,16 +91,15 @@ export function followRadio({ level, onPlaying }: Options) {
 
   // Safari only starts audio inside a gesture, so this is also retried on every click, tap and key.
   const tryPlay = () => {
-    const s = state;
-    if (!s || !wanted()) return;
-    if (loaded !== s.channelId && !setSource(s.channelId)) return;
+    if (!wanted()) return;
+    if (loaded !== state.channelId && !setSource(state.channelId)) return;
     if (audio.paused) audio.play().catch(() => {});
   };
 
   function sync() {
-    state = readCookie();
+    state = readStation();
     audio.volume = volume();
-    if (state && wanted()) {
+    if (wanted()) {
       prime(state.channelId);
       if (loaded !== state.channelId) { mirror = 0; detach(); }
       tryPlay();
@@ -115,7 +117,7 @@ export function followRadio({ level, onPlaying }: Options) {
   });
   audio.addEventListener("error", () => {
     // That mirror failed: try the next one for this station. Ignore errors from a station we already left.
-    const list = state ? streams.get(state.channelId) : undefined;
+    const list = streams.get(state.channelId);
     if (!list?.some((u) => new URL(u, location.href).href === audio.currentSrc)) return;
     if (mirror + 1 >= list.length) {
       // Every mirror failed: start over from the first on the next poll.
@@ -135,5 +137,17 @@ export function followRadio({ level, onPlaying }: Options) {
   for (const gesture of ["pointerdown", "pointerup", "click", "keydown"]) window.addEventListener(gesture, tryPlay);
   sync();
 
-  return { refresh: sync };
+  return {
+    refresh: sync,
+    /** Fetch the station list ahead of the click (hovering or pressing the switch), so play starts inside the gesture. A visitor who never touches the switch never asks SomaFM. */
+    warm: () => prime(state.channelId),
+    isOn: () => on,
+    /** Call from the click that flips the switch: Safari only starts audio inside a gesture. */
+    setOn(next: boolean) {
+      on = next;
+      try { localStorage.setItem(KEY, next ? "on" : "off"); } catch { /* storage unavailable */ }
+      prime(state.channelId);
+      sync();
+    },
+  };
 }

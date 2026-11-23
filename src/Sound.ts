@@ -161,6 +161,10 @@ const radio = followRadio({
   onPlaying: (on) => { radioOn = on; apply(1); },
 });
 
+export const isRadioOn = () => radio.isOn();
+export const setRadioOn = (on: boolean) => radio.setOn(on);
+export const warmRadio = () => radio.warm();
+
 export function getVolumes() { return { ...volumes }; }
 
 export function setVolume(channel: Channel, value: number) {

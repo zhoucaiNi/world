@@ -138,6 +138,7 @@ h1, h2 { font-family: var(--display); font-weight: var(--display-weight); color:
   background: var(--card); color: var(--ink); border: 1px solid var(--card-line); box-shadow: var(--card-shadow);
   font: 600 13px var(--body);
 }
+.toggle[aria-pressed="true"] { background: var(--button); color: var(--button-ink); border-color: transparent; }
 .clock {
   position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 45; pointer-events: none;
   display: flex; align-items: center; gap: 6px; height: 40px; box-sizing: border-box; padding: 0 14px;
