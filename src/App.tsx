@@ -145,15 +145,7 @@ export default function App() {
       )}
       {(locked || TOUCH) && (
         <div className={`pet-prompt${aim === "aimed" ? " show" : ""}`} aria-hidden>
-          {locked ? "Click to pet" : "Tap to pet"}
-        </div>
-      )}
-      {(locked || TOUCH) && (
-        <div className={`affection${aim !== "off" ? " show" : ""}`} role="status" aria-label={`Shiba affection ${affection.value} out of 100`}>
-          <svg viewBox="-0.6 -0.6 1.2 1.2" width="14" height="14" aria-hidden><path d="M0 0.5C-0.15 0.35-0.5 0.1-0.5-0.15C-0.5-0.42-0.2-0.5 0-0.28C0.2-0.5 0.5-0.42 0.5-0.15C0.5 0.1 0.15 0.35 0 0.5Z" /></svg>
-          <span className="affection-bar"><i style={{ width: `${affection.value}%` }} /></span>
-          <b>{affection.value}</b>
-          {affection.pets > 0 && <em key={affection.pets} aria-hidden>+5</em>}
+          {affection.happyToday ? "Happy today ♥" : locked ? "Click to pet" : "Tap to pet"}
         </div>
       )}
 
@@ -165,6 +157,14 @@ export default function App() {
         </button>
       )}
       {ready && <Clock />}
+      {ready && (
+        <div className="affection" role="status" aria-label={`Shiba affection ${affection.value} out of 100${affection.happyToday ? ", petted today" : ""}`} title="The shiba's affection for you. Pet it once a day; it loses 1 for each day you skip.">
+          <svg viewBox="-0.6 -0.6 1.2 1.2" width="14" height="14" aria-hidden><path d="M0 0.5C-0.15 0.35-0.5 0.1-0.5-0.15C-0.5-0.42-0.2-0.5 0-0.28C0.2-0.5 0.5-0.42 0.5-0.15C0.5 0.1 0.15 0.35 0 0.5Z" /></svg>
+          <span className="affection-bar"><i style={{ width: `${affection.value}%` }} /></span>
+          <b>{affection.value}</b>
+          {affection.pets > 0 && <em key={affection.pets} aria-hidden>+5</em>}
+        </div>
+      )}
       <div className="top-buttons">
         <button className="toggle icon-btn" aria-label="About this world" title="About this world" aria-haspopup="dialog" onClick={() => setAboutOpen(true)}>
           <HelpIcon />
