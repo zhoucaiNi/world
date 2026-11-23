@@ -19,18 +19,22 @@ function subscribe(l: () => void) {
 
 export const useAim = () => useSyncExternalStore(subscribe, () => state);
 
-/** True while the visitor is close to the stall radio and looking at it, so the HUD can offer to open it. */
-let radioAimed = false;
+/** The stall radio's interaction state: close enough to use it, and which prompt the crosshair is on. */
+export type RadioUi = { near: boolean; hover: "toggle" | "settings" | null };
+let radioUi: RadioUi = { near: false, hover: null };
 const radioListeners = new Set<() => void>();
 
-export function setRadioAim(next: boolean) {
-  if (next === radioAimed) return;
-  radioAimed = next;
+export const getRadioUi = () => radioUi;
+
+export function setRadioUi(patch: Partial<RadioUi>) {
+  const next = { ...radioUi, ...patch };
+  if (next.near === radioUi.near && next.hover === radioUi.hover) return;
+  radioUi = next;
   radioListeners.forEach((l) => l());
 }
 
-export const useRadioAim = () =>
+export const useRadioUi = () =>
   useSyncExternalStore(
-    (l) => { radioListeners.add(l); return () => radioListeners.delete(l); },
-    () => radioAimed,
+    (l) => { radioListeners.add(l); return () => { radioListeners.delete(l); }; },
+    () => radioUi,
   );

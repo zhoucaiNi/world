@@ -3,8 +3,8 @@
 // handing over to a guitar loop at the campfire; the fire crackle gets louder and brighter
 // up close, the fountain splashes only within about 10 m of it; birds are an occasional quiet snippet by day, crickets a quiet bed at night.
 // Browsers only allow audio after a user gesture, so it starts on the first click or keypress.
-// When the radio (radio.zhoucai.me) is playing, the world plays the same station instead of its own music
-// and turns everything else down (see radioStream.ts).
+// When the radio is switched on (a cookie shared with radio.zhoucai.me), the world plays that station instead of its
+// own music and turns everything else down; the radio site steps aside while it does (see radioStream.ts).
 
 import { followRadio } from "./radioStream";
 
@@ -161,6 +161,9 @@ const radio = followRadio({
   onPlaying: (on) => { radioOn = on; apply(1); },
 });
 
+/** The world's radio: the switch, station and volume, and a snapshot to subscribe to. */
+export { radio };
+
 export function getVolumes() { return { ...volumes }; }
 
 export function setVolume(channel: Channel, value: number) {
@@ -174,8 +177,13 @@ export function setVolume(channel: Channel, value: number) {
 
 export function isMuted() { return muted; }
 
+// The mixer UI listens, so un-muting from the radio keeps its switch in step.
+const muteListeners = new Set<(m: boolean) => void>();
+export function onMuteChange(fn: (m: boolean) => void) { muteListeners.add(fn); return () => { muteListeners.delete(fn); }; }
+
 export function setMuted(m: boolean) {
   muted = m;
+  muteListeners.forEach((l) => l(m));
   try { localStorage.setItem("world-sound", m ? "off" : "on"); } catch { /* storage unavailable */ }
   radio.refresh();
   if (m) { if (ctx) master.gain.setTargetAtTime(0, ctx.currentTime, 0.05); }
@@ -190,3 +198,7 @@ const kick = () => {
 };
 window.addEventListener("pointerdown", kick);
 window.addEventListener("keydown", kick);
+
+// Dev only: a hot-reloaded copy of this module would leave the old audio context, loops, timers and radio stream
+// playing under the new ones, so reload the page instead.
+if (import.meta.hot) import.meta.hot.accept(() => location.reload());

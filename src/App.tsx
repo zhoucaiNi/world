@@ -5,12 +5,11 @@ import World from "./World";
 import Halftone from "./Halftone";
 import Minimap from "./Minimap";
 import LoadingMap from "./LoadingMap";
-import { CHANNELS, getVolumes, isMuted, setMuted, setVolume, type Channel } from "./Sound";
+import { CHANNELS, getVolumes, isMuted, onMuteChange, setMuted, setVolume, type Channel } from "./Sound";
 import { TOWN } from "./town";
 import Joystick, { isTouchScreen } from "./Joystick";
 import About, { HelpIcon } from "./About";
-import { useAim, useRadioAim } from "./aim";
-import { RADIO_URL } from "./Radio";
+import { useAim } from "./aim";
 import { seat, type SeatPrompt } from "./Player";
 import { currentHour, nightAt } from "./theme";
 
@@ -75,13 +74,13 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [seatPrompt, setSeatPrompt] = useState<SeatPrompt>(null);
   const [muted, setMutedState] = useState(isMuted);
+  useEffect(() => onMuteChange(setMutedState), []); // the radio can un-mute the world
   const [mixOpen, setMixOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [volumes, setVolumesState] = useState(getVolumes);
   const mixWrap = useRef<HTMLDivElement>(null);
   const [dpr, setDpr] = useState(MAX_DPR);
   const aim = useAim();
-  const radioNear = useRadioAim();
 
   // Lift the veil once every model and texture has loaded, not on a timer. Models stream in
   // waves, so wait for loading to stay finished briefly, and keep a short minimum so it never flashes.
@@ -154,11 +153,6 @@ export default function App() {
         <button className="toggle seat-prompt" onClick={(e) => { e.currentTarget.blur(); seat.toggle(); }}>
           {seatPrompt === "sit" ? "Sit" : "Stand"} · E
         </button>
-      )}
-      {ready && radioNear && !seatPrompt && (
-        <a className="toggle seat-prompt" href={RADIO_URL} target="_blank" rel="noopener noreferrer">
-          Open radio ↗{!TOUCH && " · Enter"}
-        </a>
       )}
       {ready && <Clock />}
       <div className="top-buttons">
