@@ -119,8 +119,22 @@ h1, h2 { font-family: var(--display); font-weight: var(--display-weight); color:
   font: 600 12px var(--body); opacity: 0; transition: opacity 150ms ease;
 }
 .pet-prompt.show { opacity: 1; }
+/* How fond the shiba is of you (affection.ts): shown while you are looking at it. */
+.affection {
+  position: fixed; left: 50%; top: calc(50% + 58px); transform: translateX(-50%); pointer-events: none;
+  display: flex; align-items: center; gap: 7px; padding: 5px 12px 5px 9px; border-radius: 999px; white-space: nowrap;
+  background: var(--card); color: var(--ink); border: 1px solid var(--card-line); box-shadow: var(--card-shadow);
+  font: 700 12px var(--body); font-variant-numeric: tabular-nums; opacity: 0; transition: opacity 150ms ease;
+}
+.affection.show { opacity: 1; }
+.affection svg { fill: #f29bb0; flex: none; }
+.affection-bar { width: 64px; height: 6px; border-radius: 3px; background: var(--card-line); overflow: hidden; }
+.affection-bar i { display: block; height: 100%; background: #f29bb0; border-radius: 3px; transition: width 300ms ease; }
+.affection em { position: absolute; right: 6px; top: -4px; font-style: normal; color: #d96f8c; animation: affection-pop 1s ease-out forwards; }
+@keyframes affection-pop { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-16px); } }
 @media (prefers-reduced-motion: reduce) {
-  .crosshair .dot, .crosshair .heart, .pet-prompt { transition: none; }
+  .crosshair .dot, .crosshair .heart, .pet-prompt, .affection, .affection-bar i { transition: none; }
+  .affection em { animation: none; opacity: 0; }
 }
 
 .hint {
