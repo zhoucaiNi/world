@@ -125,12 +125,15 @@ function bodyOf(scene: Object3D, length: number, yaw: number, swap: readonly (re
 /** The palette tone of each vertex: the swap entry nearest to the atlas colour under its UV. */
 function toneIds(geo: BufferGeometry, image: CanvasImageSource & { width: number; height: number }, swap: readonly (readonly [readonly number[], number])[]) {
   const { width: w, height: h } = image;
-  const ctx = new OffscreenCanvas(w, h).getContext("2d")!;
+  const ctx = new OffscreenCanvas(w, h).getContext("2d", { willReadFrequently: true })!;
   ctx.drawImage(image, 0, 0);
+  // One readback for the whole atlas: a getImageData call per vertex freezes iOS Safari.
+  const px = ctx.getImageData(0, 0, w, h).data;
   const uv = geo.getAttribute("uv");
   const ids = new Float32Array(uv.count);
   for (let i = 0; i < uv.count; i++) {
-    const [r, g, b] = ctx.getImageData(Math.min(w - 1, Math.floor(uv.getX(i) * w)), Math.min(h - 1, Math.floor(uv.getY(i) * h)), 1, 1).data;
+    const o = (Math.min(h - 1, Math.floor(uv.getY(i) * h)) * w + Math.min(w - 1, Math.floor(uv.getX(i) * w))) * 4;
+    const r = px[o], g = px[o + 1], b = px[o + 2];
     let best = Infinity;
     for (const [c, id] of swap) {
       const d = (c[0] - r) ** 2 + (c[1] - g) ** 2 + (c[2] - b) ** 2;
