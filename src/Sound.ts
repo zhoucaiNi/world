@@ -3,8 +3,8 @@
 // handing over to a guitar loop at the campfire; the fire crackle gets louder and brighter
 // up close, the fountain splashes only within about 10 m of it; birds are an occasional quiet snippet by day, crickets a quiet bed at night.
 // Browsers only allow audio after a user gesture, so it starts on the first click or keypress.
-// When the radio (radio.zhoucai.me) is playing, the world plays the same station instead of its own music
-// and turns everything else down (see radioStream.ts).
+// When the radio is switched on (a cookie shared with radio.zhoucai.me), the world plays that station instead of its
+// own music and turns everything else down; the radio site steps aside while it does (see radioStream.ts).
 
 import { followRadio } from "./radioStream";
 
