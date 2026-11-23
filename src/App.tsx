@@ -5,12 +5,11 @@ import World from "./World";
 import Halftone from "./Halftone";
 import Minimap from "./Minimap";
 import LoadingMap from "./LoadingMap";
-import { CHANNELS, getVolumes, isMuted, isRadioOn, setMuted, setRadioOn, setVolume, warmRadio, type Channel } from "./Sound";
+import { CHANNELS, getVolumes, isMuted, onMuteChange, setMuted, setVolume, type Channel } from "./Sound";
 import { TOWN } from "./town";
 import Joystick, { isTouchScreen } from "./Joystick";
 import About, { HelpIcon } from "./About";
-import { useAim, useRadioAim } from "./aim";
-import { RADIO_URL } from "./Radio";
+import { useAim } from "./aim";
 import { seat, type SeatPrompt } from "./Player";
 import { currentHour, nightAt } from "./theme";
 
@@ -25,17 +24,6 @@ function SoundIcon({ level }: { level: 0 | 1 | 2 }) {
       {level === 0 && <path d="m16 9 5 6m0-6-5 6" />}
       {level >= 1 && <path d="M15.5 8.5a5 5 0 0 1 0 7" />}
       {level === 2 && <path d="M18.5 5.5a9 9 0 0 1 0 13" />}
-    </svg>
-  );
-}
-
-function RadioIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="8" width="18" height="12" rx="2" />
-      <path d="m8 8 8-5" />
-      <circle cx="15.5" cy="14" r="2.5" />
-      <path d="M6 12.5h3M6 15.5h3" />
     </svg>
   );
 }
@@ -86,14 +74,13 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [seatPrompt, setSeatPrompt] = useState<SeatPrompt>(null);
   const [muted, setMutedState] = useState(isMuted);
+  useEffect(() => onMuteChange(setMutedState), []); // the radio can un-mute the world
   const [mixOpen, setMixOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const [radioOn, setRadioOnState] = useState(isRadioOn);
   const [volumes, setVolumesState] = useState(getVolumes);
   const mixWrap = useRef<HTMLDivElement>(null);
   const [dpr, setDpr] = useState(MAX_DPR);
   const aim = useAim();
-  const radioNear = useRadioAim();
 
   // Lift the veil once every model and texture has loaded, not on a timer. Models stream in
   // waves, so wait for loading to stay finished briefly, and keep a short minimum so it never flashes.
@@ -167,26 +154,10 @@ export default function App() {
           {seatPrompt === "sit" ? "Sit" : "Stand"} · E
         </button>
       )}
-      {ready && radioNear && !seatPrompt && (
-        <a className="toggle seat-prompt" href={RADIO_URL} target="_blank" rel="noopener noreferrer">
-          Open radio ↗{!TOUCH && " · Enter"}
-        </a>
-      )}
       {ready && <Clock />}
       <div className="top-buttons">
         <button className="toggle icon-btn" aria-label="About this world" title="About this world" aria-haspopup="dialog" onClick={() => setAboutOpen(true)}>
           <HelpIcon />
-        </button>
-        <button
-          className="toggle icon-btn" aria-label="Radio" aria-pressed={radioOn} onPointerEnter={warmRadio} onPointerDown={warmRadio} onFocus={warmRadio} title={radioOn ? "Turn the radio off" : "Turn the radio on"}
-          onClick={() => {
-            const next = !radioOn;
-            if (next && muted) { setMuted(false); setMutedState(false); } // turning the radio on should be audible
-            setRadioOn(next);
-            setRadioOnState(next);
-          }}
-        >
-          <RadioIcon />
         </button>
         <div className="mix-wrap" ref={mixWrap}>
           <button className="toggle icon-btn" aria-label="Sound settings" title="Sound settings" aria-expanded={mixOpen} aria-controls="mix" onClick={() => setMixOpen((o) => !o)}>

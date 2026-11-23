@@ -1,21 +1,39 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { MeshStandardMaterial, Vector3, type MeshStandardMaterialParameters } from "three";
-import { setRadioAim } from "./aim";
+import { Html } from "@react-three/drei";
+import { MeshStandardMaterial, Vector3, type MeshStandardMaterialParameters, type PerspectiveCamera } from "three";
+import { getRadioUi, setRadioUi, useRadioUi } from "./aim";
+import { isTouchScreen } from "./Joystick";
+import { isMuted, radio, setMuted } from "./Sound";
 import { night } from "./theme";
 import { RADIO } from "./town";
 
 export const RADIO_URL = "https://radio.zhoucai.me";
-const RANGE = 3; // m from the camera
-const CONE = (14 * Math.PI) / 180; // how far off the crosshair the radio may be
-const TOUCH_CONE = (35 * Math.PI) / 180; // a tap is exact, so the radio only needs to be roughly in view
+const NEAR = 3.4; // m from the radio: close enough to use it
+const VIEW = (65 * Math.PI) / 180; // and roughly facing it
+const AIM_PAD = 18; // px of slack around a prompt when the crosshair picks it
+const TOUCH = isTouchScreen();
 
-const open = () => window.open(RADIO_URL, "_blank", "noopener,noreferrer");
+const useRadio = () => useSyncExternalStore(radio.subscribe, radio.getSnapshot);
 
-/** A small radio on the red stall's counter. Looking at it from close by offers a link to the radio site. */
+function toggleRadio() {
+  const next = !radio.getSnapshot().on;
+  if (next && isMuted()) setMuted(false); // turning the radio on should be audible
+  radio.setOn(next);
+}
+
+// Station and volume live on the radio site, so settings just go there.
+const openSettings = () => { window.open(RADIO_URL, "_blank", "noopener,noreferrer"); };
+
+/** The radio on the red stall's counter. Close to it, two prompts hang either side of it and turn to face you:
+ *  T turns it on and off, U opens its settings (the radio site). Keys, a tap, or the crosshair on a prompt all work. */
 export default function Radio() {
   const { camera, gl } = useThree();
-  const aimed = useRef(false);
+  const hud = useRef<HTMLDivElement>(null);
+  const left = useRef<HTMLButtonElement>(null);
+  const right = useRef<HTMLAnchorElement>(null);
+  const ui = useRadioUi();
+  const state = useRadio();
   const mats = useMemo(() => {
     const m = (color: string, extra: MeshStandardMaterialParameters = {}) => {
       const mat = new MeshStandardMaterial({ color, roughness: 0.7, metalness: 0, ...extra });
@@ -27,21 +45,52 @@ export default function Radio() {
     return { body: m("#c9553d"), trim: m("#f3e3c3"), dark: m("#3a2a22"), brass: m("#d9a441"), glow };
   }, []);
 
-  useFrame(() => {
-    const to = new Vector3(RADIO.at[0], RADIO.y + 0.15, RADIO.at[1]).sub(camera.position);
-    const cone = document.pointerLockElement === gl.domElement ? CONE : TOUCH_CONE;
-    const on = to.length() <= RANGE && to.angleTo(camera.getWorldDirection(new Vector3())) <= cone;
-    if (on !== aimed.current) { aimed.current = on; setRadioAim(on); }
-    mats.glow.emissiveIntensity = 0.3 + 1.6 * night.value;
+  useFrame(({ size }) => {
+    const base = new Vector3(RADIO.at[0], RADIO.y + 0.15, RADIO.at[1]);
+    const to = base.sub(camera.position);
+    const dist = to.length();
+    const near = dist <= NEAR && to.angleTo(camera.getWorldDirection(new Vector3())) <= VIEW;
+    if (near && !getRadioUi().near) radio.warm(); // fetch the station list now, so it can start inside the click
+    let hover: "toggle" | "settings" | null = null;
+    if (near && hud.current) {
+      // Keep the prompts clear of the radio however close you are: half its width on screen, in px.
+      const fov = ((camera as PerspectiveCamera).fov * Math.PI) / 180;
+      const half = (0.3 / (Math.tan(fov / 2) * dist)) * (size.height / 2);
+      hud.current.style.setProperty("--half", `${Math.round(half)}px`);
+      if (document.pointerLockElement === gl.domElement) {
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        const on = (el: HTMLElement | null) => {
+          const r = el?.getBoundingClientRect();
+          return !!r && cx > r.left - AIM_PAD && cx < r.right + AIM_PAD && cy > r.top - AIM_PAD && cy < r.bottom + AIM_PAD;
+        };
+        hover = on(left.current) ? "toggle" : on(right.current) ? "settings" : null;
+      }
+    }
+    setRadioUi({ near, hover });
+    mats.glow.emissiveIntensity = 0.3 + 1.6 * night.value + (radio.getSnapshot().on ? 0.6 : 0);
   });
 
-  // With the mouse locked to the view, a click on the radio (or Enter) opens it; touch uses the HUD button.
   useEffect(() => {
     const canvas = gl.domElement;
-    let wasLocked = false; // the click that locks the mouse must not also open the link
+    let wasLocked = false; // the click that locks the mouse must not also press a prompt
     const down = () => { wasLocked = document.pointerLockElement === canvas; };
-    const click = () => { if (wasLocked && aimed.current) open(); };
-    const key = (e: KeyboardEvent) => { if (e.key === "Enter" && !e.repeat && aimed.current) open(); };
+    const click = () => {
+      const { hover } = getRadioUi();
+      if (!wasLocked || !hover) return;
+      if (hover === "toggle") toggleRadio(); else openSettings();
+    };
+    const key = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || !getRadioUi().near) return;
+      const k = e.key.toLowerCase();
+      if (e.repeat) return;
+      if (k === "t") toggleRadio();
+      else if (k === "u") openSettings();
+      else return;
+      e.preventDefault();
+    };
     canvas.addEventListener("pointerdown", down);
     canvas.addEventListener("click", click);
     window.addEventListener("keydown", key);
@@ -49,11 +98,19 @@ export default function Radio() {
       canvas.removeEventListener("pointerdown", down);
       canvas.removeEventListener("click", click);
       window.removeEventListener("keydown", key);
-      setRadioAim(false);
+      setRadioUi({ near: false, hover: null });
     };
   }, [gl]);
 
+  // Buttons never take focus, so Space (jump) and the arrows keep working for the world.
+  const press = (fn: () => void) => ({
+    tabIndex: -1,
+    onMouseDown: (e: React.MouseEvent) => e.preventDefault(),
+    onClick: (e: React.MouseEvent<HTMLElement>) => { e.currentTarget.blur(); fn(); },
+  });
+
   return (
+    <>
     <group position={[RADIO.at[0], RADIO.y, RADIO.at[1]]} rotation={[0, RADIO.rot, 0]}>
       <mesh position={[0, 0.15, 0]} material={mats.body} castShadow>
         <boxGeometry args={[0.46, 0.3, 0.18]} />
@@ -91,5 +148,18 @@ export default function Radio() {
         <sphereGeometry args={[0.015, 8, 6]} />
       </mesh>
     </group>
+      {ui.near && (
+        <Html position={[RADIO.at[0], RADIO.y + 0.15, RADIO.at[1]]} center zIndexRange={[20, 0]}>
+          <div className="radio-hud" ref={hud}>
+            <button ref={left} className={`radio-pill left${ui.hover === "toggle" ? " aimed" : ""}${state.on ? " on" : ""}`} {...press(toggleRadio)}>
+              {!TOUCH && <kbd>T</kbd>}{state.on ? "Turn off" : "Turn on"}
+            </button>
+            <a ref={right} className={`radio-pill right${ui.hover === "settings" ? " aimed" : ""}`} href={RADIO_URL} target="_blank" rel="noopener noreferrer" tabIndex={-1} onMouseDown={(e) => e.preventDefault()}>
+              {!TOUCH && <kbd>U</kbd>}Settings ↗
+            </a>
+          </div>
+        </Html>
+      )}
+    </>
   );
 }
