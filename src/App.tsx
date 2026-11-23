@@ -8,6 +8,7 @@ import LoadingMap from "./LoadingMap";
 import { CHANNELS, getVolumes, isMuted, setMuted, setVolume, type Channel } from "./Sound";
 import { TOWN } from "./town";
 import Joystick, { isTouchScreen } from "./Joystick";
+import About, { HelpIcon } from "./About";
 import { useAim } from "./aim";
 import { seat, type SeatPrompt } from "./Player";
 import { currentHour, nightAt } from "./theme";
@@ -74,6 +75,7 @@ export default function App() {
   const [seatPrompt, setSeatPrompt] = useState<SeatPrompt>(null);
   const [muted, setMutedState] = useState(isMuted);
   const [mixOpen, setMixOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [volumes, setVolumesState] = useState(getVolumes);
   const mixWrap = useRef<HTMLDivElement>(null);
   const [dpr, setDpr] = useState(MAX_DPR);
@@ -153,6 +155,9 @@ export default function App() {
       )}
       {ready && <Clock />}
       <div className="top-buttons">
+        <button className="toggle icon-btn" aria-label="About this world" title="About this world" aria-haspopup="dialog" onClick={() => setAboutOpen(true)}>
+          <HelpIcon />
+        </button>
         <div className="mix-wrap" ref={mixWrap}>
           <button className="toggle icon-btn" aria-label="Sound settings" title="Sound settings" aria-expanded={mixOpen} aria-controls="mix" onClick={() => setMixOpen((o) => !o)}>
             <SoundIcon level={muted || volumes.master === 0 ? 0 : volumes.master < 0.5 ? 1 : 2} />
@@ -177,6 +182,8 @@ export default function App() {
           )}
         </div>
       </div>
+      {aboutOpen && <About touch={TOUCH} onClose={() => setAboutOpen(false)} />}
+
       <Veil done={ready} progress={progress} />
     </>
   );
