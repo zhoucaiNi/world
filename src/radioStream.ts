@@ -1,9 +1,11 @@
-// The world's radio. The visitor turns it on and off in the world; it plays inside this page. Which station and how
-// loud come from the cookie radio.zhoucai.me writes on *.zhoucai.me (the radio's own defaults when there is none).
+// The world's radio. The visitor turns it on and off at the radio in the world and it plays inside this page. Which
+// station and how loud come from the cookie radio.zhoucai.me writes on *.zhoucai.me (the radio's own defaults when
+// there is none); the settings live on the radio site, which the radio in the world links to.
 // A plain <audio> element, as the radio uses: the streams do not send CORS headers, so Web Audio could not read them.
 
 // The radio's lineup. The cookie is readable by every *.zhoucai.me site, so only these ids are ever used in a URL.
 const STATIONS = ["groovesalad", "lush", "bossa", "dronezone", "fluid", "deepspaceone", "folkfwd", "secretagent"];
+const isStation = (id: unknown): id is string => STATIONS.includes(id as string);
 // What the radio itself starts with (its stored defaults), used when it is on but no station or volume was saved.
 const DEFAULT_STATION = "groovesalad";
 const DEFAULT_VOLUME = 0.7;
@@ -11,16 +13,19 @@ const POLL_MS = 2000;
 const PAUSE_GRACE_MS = 2500; // a station switch pauses briefly; don't un-duck the world for that
 
 type Station = { channelId: string; volume: number };
+export type RadioState = Station & { on: boolean };
 
-function readStation(): Station {
+/** The cookie's station and volume, or `fallback` where there is no cookie. */
+function readStation(fallback: Station): Station {
   const part = document.cookie.split("; ").find((c) => c.startsWith("radio="));
+  if (!part) return fallback;
   try {
-    const v = part ? (JSON.parse(decodeURIComponent(part.slice("radio=".length))) as Partial<Station>) : {};
-    const channelId = typeof v.channelId === "string" && STATIONS.includes(v.channelId) ? v.channelId : DEFAULT_STATION;
-    const volume = typeof v.volume === "number" && v.volume >= 0 && v.volume <= 1 ? v.volume : DEFAULT_VOLUME;
+    const v = JSON.parse(decodeURIComponent(part.slice("radio=".length))) as Partial<Station>;
+    const channelId = isStation(v.channelId) ? v.channelId : fallback.channelId;
+    const volume = typeof v.volume === "number" && v.volume >= 0 && v.volume <= 1 ? v.volume : fallback.volume;
     return { channelId, volume };
   } catch {
-    return { channelId: DEFAULT_STATION, volume: DEFAULT_VOLUME };
+    return fallback;
   }
 }
 
@@ -49,8 +54,15 @@ type Options = {
 export function followRadio({ level, onPlaying }: Options) {
   const audio = new Audio();
   const streams = new Map<string, string[]>();
-  let state: Station = readStation();
+  let state: Station = readStation({ channelId: DEFAULT_STATION, volume: DEFAULT_VOLUME });
   let on = readOn();
+  let snapshot: RadioState = { ...state, on };
+  const listeners = new Set<() => void>();
+  const publish = () => {
+    if (snapshot.channelId === state.channelId && snapshot.volume === state.volume && snapshot.on === on) return;
+    snapshot = { ...state, on };
+    listeners.forEach((l) => l());
+  };
   let loaded = ""; // station currently set as the source
   let mirror = 0;
   let announced = false;
@@ -97,7 +109,8 @@ export function followRadio({ level, onPlaying }: Options) {
   };
 
   function sync() {
-    state = readStation();
+    state = readStation(state);
+    publish();
     audio.volume = volume();
     if (wanted()) {
       prime(state.channelId);
@@ -142,6 +155,8 @@ export function followRadio({ level, onPlaying }: Options) {
     /** Fetch the station list ahead of the click (hovering or pressing the switch), so play starts inside the gesture. A visitor who never touches the switch never asks SomaFM. */
     warm: () => prime(state.channelId),
     isOn: () => on,
+    subscribe: (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; },
+    getSnapshot: () => snapshot,
     /** Call from the click that flips the switch: Safari only starts audio inside a gesture. */
     setOn(next: boolean) {
       on = next;
