@@ -18,3 +18,19 @@ function subscribe(l: () => void) {
 }
 
 export const useAim = () => useSyncExternalStore(subscribe, () => state);
+
+/** True while the visitor is close to the stall radio and looking at it, so the HUD can offer to open it. */
+let radioAimed = false;
+const radioListeners = new Set<() => void>();
+
+export function setRadioAim(next: boolean) {
+  if (next === radioAimed) return;
+  radioAimed = next;
+  radioListeners.forEach((l) => l());
+}
+
+export const useRadioAim = () =>
+  useSyncExternalStore(
+    (l) => { radioListeners.add(l); return () => radioListeners.delete(l); },
+    () => radioAimed,
+  );

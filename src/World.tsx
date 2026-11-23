@@ -12,6 +12,7 @@ import Dog from "./Dog";
 import Campfire from "./Campfire";
 import { FountainJet, waterMaterial } from "./Fountain";
 import Fireflies from "./Fireflies";
+import Radio from "./Radio";
 import Birds from "./Birds";
 import { Grass, grassMaterial } from "./Grass";
 import { Bushes, Flowers, bushMaterial, flowerMaterial } from "./Flora";
@@ -354,6 +355,7 @@ export default function World({ onSeat }: { onSeat: (s: SeatPrompt) => void }) {
       <Windmill m={m} />
       <Paving material={m.path} />
       <Props swaps={swaps} />
+      <Radio />
       <Trees swap={natureSwap} />
       <Lawn grass={m.grass} bush={m.bush} yellow={m.flowerYellow} purple={m.flowerPurple} />
       <Fireflies />

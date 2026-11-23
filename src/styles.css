@@ -130,7 +130,7 @@ h1, h2 { font-family: var(--display); font-weight: var(--display-weight); color:
   text-shadow: 0 0 6px var(--hint-glow), 0 0 12px var(--hint-glow);
 }
 
-.seat-prompt { position: fixed; left: 50%; bottom: 56px; transform: translateX(-50%); z-index: 40; }
+.seat-prompt { text-decoration: none; position: fixed; left: 50%; bottom: 56px; transform: translateX(-50%); z-index: 40; }
 
 .top-buttons { position: fixed; top: 14px; right: 14px; z-index: 45; display: flex; gap: 8px; }
 .toggle {

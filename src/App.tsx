@@ -9,7 +9,8 @@ import { CHANNELS, getVolumes, isMuted, setMuted, setVolume, type Channel } from
 import { TOWN } from "./town";
 import Joystick, { isTouchScreen } from "./Joystick";
 import About, { HelpIcon } from "./About";
-import { useAim } from "./aim";
+import { useAim, useRadioAim } from "./aim";
+import { RADIO_URL } from "./Radio";
 import { seat, type SeatPrompt } from "./Player";
 import { currentHour, nightAt } from "./theme";
 
@@ -80,6 +81,7 @@ export default function App() {
   const mixWrap = useRef<HTMLDivElement>(null);
   const [dpr, setDpr] = useState(MAX_DPR);
   const aim = useAim();
+  const radioNear = useRadioAim();
 
   // Lift the veil once every model and texture has loaded, not on a timer. Models stream in
   // waves, so wait for loading to stay finished briefly, and keep a short minimum so it never flashes.
@@ -152,6 +154,11 @@ export default function App() {
         <button className="toggle seat-prompt" onClick={(e) => { e.currentTarget.blur(); seat.toggle(); }}>
           {seatPrompt === "sit" ? "Sit" : "Stand"} · E
         </button>
+      )}
+      {ready && radioNear && !seatPrompt && (
+        <a className="toggle seat-prompt" href={RADIO_URL} target="_blank" rel="noopener noreferrer">
+          Open radio ↗{!TOUCH && " · Enter"}
+        </a>
       )}
       {ready && <Clock />}
       <div className="top-buttons">
