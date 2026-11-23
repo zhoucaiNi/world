@@ -143,9 +143,11 @@ export const SEATS: Seat[] = [...BENCHES, ...FIRE_SEATS];
 
 const WATER_Y = 0.37; // the fountain's water surface (0.14 x 2.5) plus a hair
 
+// The radio on the red stall's counter, where the middle pumpkin was. `rot` turns it to face the plaza.
+export const RADIO = { at: [-5.3, 6.1] as Vec2, y: 0.92, rot: Math.atan2(5.3, -6.1) };
+
 const COUNTER_GOODS: Prop[] = [
   { kind: "pumpkin", at: [-5.9, 5.3], y: 0.92, rot: 0.3 },
-  { kind: "pumpkin", at: [-5.1, 6.1], y: 0.92, rot: 1.4 },
   { kind: "pumpkin", at: [-5.9, 6.8], y: 0.92, rot: 2.6 },
   { kind: "melon", at: [5.1, 5.4], y: 0.92, rot: 0.8 },
   { kind: "carrot", at: [5.9, 6.0], y: 0.92, rot: 2.2 },
