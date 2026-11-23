@@ -130,24 +130,6 @@ h1, h2 { font-family: var(--display); font-weight: var(--display-weight); color:
   text-shadow: 0 0 6px var(--hint-glow), 0 0 12px var(--hint-glow);
 }
 
-.panel {
-  position: fixed; left: 50%; bottom: 56px; transform: translateX(-50%);
-  width: min(360px, calc(100vw - 32px)); padding: 16px 18px; border-radius: var(--radius);
-  background: var(--card); border: 1px solid var(--card-line); box-shadow: var(--card-shadow);
-  backdrop-filter: blur(8px);
-}
-.panel h2 { margin: 0 0 4px; font-size: 21px; }
-.panel p { margin: 0 0 12px; font-size: 14px; color: var(--ink-soft); }
-.panel a {
-  display: inline-block; padding: 8px 16px; border-radius: var(--button-radius); text-decoration: none;
-  background: var(--button); color: var(--button-ink); font-weight: 700; font-size: 14px;
-}
-
-.panel kbd {
-  margin-left: 6px; padding: 1px 6px; border-radius: 4px; font: 600 11px var(--body);
-  border: 1px solid currentColor; opacity: 0.75;
-}
-
 .seat-prompt { position: fixed; left: 50%; bottom: 56px; transform: translateX(-50%); z-index: 40; }
 
 .top-buttons { position: fixed; top: 14px; right: 14px; z-index: 45; display: flex; gap: 8px; }
@@ -185,24 +167,6 @@ h1, h2 { font-family: var(--display); font-weight: var(--display-weight); color:
 .switch[aria-checked="true"]::after { transform: translateX(16px); }
 .mix.is-muted label { opacity: .45; }
 .mix input { width: 100%; min-width: 0; margin: 0; accent-color: var(--title); touch-action: pan-y; }
-.list {
-  position: fixed; inset: 0; z-index: 40; overflow: auto; padding: 72px 20px 40px;
-  background: var(--page);
-}
-.projects { list-style: none; margin: 0 auto; padding: 0; max-width: 560px; display: grid; gap: 12px; }
-.projects li { padding: 16px 18px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--card-line); }
-.projects a { color: var(--title); font: var(--display-weight) 20px var(--display); text-decoration: none; }
-.projects a:hover { text-decoration: underline; }
-.projects p { margin: 6px 0 0; color: var(--ink-soft); font-size: 14px; }
-
-.credits { max-width: 560px; margin: 36px auto 0; font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
-.credits h2 { margin: 0 0 6px; font-size: 20px; }
-.credits h3 { margin: 18px 0 4px; font: 700 12px var(--body); color: var(--ink); letter-spacing: 0.04em; text-transform: uppercase; }
-.credits p { margin: 0; }
-.credits ul { list-style: none; margin: 0; padding: 0; }
-.credits li { padding: 2px 0; }
-.credits a { color: var(--title); text-underline-offset: 2px; }
-
 .minimap {
   position: fixed; z-index: 30;
   top: calc(14px + env(safe-area-inset-top)); left: calc(14px + env(safe-area-inset-left));
@@ -225,9 +189,6 @@ h1, h2 { font-family: var(--display); font-weight: var(--display-weight); color:
   background: var(--button); border: 1px solid var(--card-line); box-shadow: var(--card-shadow);
   opacity: 0.85;
 }
-/* Keep the project card clear of the stick on phones. */
-@media (pointer: coarse) { .panel { bottom: calc(190px + env(safe-area-inset-bottom)); } }
-
 @media (pointer: coarse) {
   .joystick {
     left: auto;

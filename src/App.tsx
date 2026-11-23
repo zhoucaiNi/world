@@ -5,8 +5,6 @@ import World from "./World";
 import Halftone from "./Halftone";
 import Minimap from "./Minimap";
 import LoadingMap from "./LoadingMap";
-import { projects, type Project } from "./projects";
-import { credits, creditsIntro, type Inline } from "./credits";
 import { CHANNELS, getVolumes, isMuted, setMuted, setVolume, type Channel } from "./Sound";
 import { TOWN } from "./town";
 import Joystick, { isTouchScreen } from "./Joystick";
@@ -32,23 +30,8 @@ function SoundIcon({ level }: { level: 0 | 1 | 2 }) {
 const VOLUME_LABELS: Record<Channel, string> = { master: "Master", music: "Music", fire: "Campfire", fountain: "Fountain", crickets: "Crickets", birds: "Birds" };
 
 const TIPS = [
-  "Click to look around, WASD or arrows to walk. Stand at a door to open a project.",
-  "Every building is a project.",
+  "Click to look around, WASD or arrows to walk.",
 ];
-
-function CreditLine({ parts }: { parts: Inline[] }) {
-  return (
-    <>
-      {parts.map((p, i) =>
-        typeof p === "string" ? p : (
-          <a key={i} href={p.href} target="_blank" rel="noreferrer">
-            {p.text}
-          </a>
-        ),
-      )}
-    </>
-  );
-}
 
 // Same clock and night threshold the world uses (see syncUiTheme).
 function Clock() {
@@ -88,9 +71,7 @@ function Veil({ done, progress }: { done: boolean; progress: number }) {
 
 export default function App() {
   const [ready, setReady] = useState(false);
-  const [nearby, setNearby] = useState<Project | null>(null);
   const [seatPrompt, setSeatPrompt] = useState<SeatPrompt>(null);
-  const [listView, setListView] = useState(false);
   const [muted, setMutedState] = useState(isMuted);
   const [mixOpen, setMixOpen] = useState(false);
   const [volumes, setVolumesState] = useState(getVolumes);
@@ -123,15 +104,6 @@ export default function App() {
     return () => { window.removeEventListener("keydown", esc); window.removeEventListener("pointerdown", away); };
   }, [mixOpen]);
 
-  // The mouse is usually locked to the view at a door, so Enter opens the project.
-  useEffect(() => {
-    if (!nearby) return;
-    const open = (e: KeyboardEvent) => {
-      if (e.key === "Enter") window.open(nearby.url, "_blank", "noreferrer");
-    };
-    window.addEventListener("keydown", open);
-    return () => window.removeEventListener("keydown", open);
-  }, [nearby]);
   useEffect(() => {
     if (ready || !minShown || active || progress < 100) return;
     const t = setTimeout(() => setReady(true), 300);
@@ -151,13 +123,13 @@ export default function App() {
             />
           )}
           <Suspense fallback={null}>
-            <World onNearby={setNearby} onSeat={setSeatPrompt} />
+            <World onSeat={setSeatPrompt} />
             <Halftone />
           </Suspense>
         </Canvas>
       </div>
       <div className="vignette" />
-      {!listView && <Minimap />}
+      <Minimap />
       {locked && (
         <div className={`crosshair${aim !== "off" ? " aimed" : ""}`}>
           <i className="dot" />
@@ -167,29 +139,19 @@ export default function App() {
         </div>
       )}
       {(locked || TOUCH) && (
-        <div className={`pet-prompt${aim === "aimed" && !nearby && !listView ? " show" : ""}`} aria-hidden>
+        <div className={`pet-prompt${aim === "aimed" ? " show" : ""}`} aria-hidden>
           {locked ? "Click to pet" : "Tap to pet"}
         </div>
       )}
 
-      {ready && !nearby && seatPrompt !== "stand" && <div className="hint">{TOUCH ? "Drag to look · use the stick to walk" : "Click to look around · WASD or arrows to walk · Esc frees the mouse"}</div>}
-      {ready && TOUCH && !listView && <Joystick />}
-      {ready && seatPrompt && !listView && !nearby && (
+      {ready && seatPrompt !== "stand" && <div className="hint">{TOUCH ? "Drag to look · use the stick to walk" : "Click to look around · WASD or arrows to walk · Esc frees the mouse"}</div>}
+      {ready && TOUCH && <Joystick />}
+      {ready && seatPrompt && (
         <button className="toggle seat-prompt" onClick={(e) => { e.currentTarget.blur(); seat.toggle(); }}>
           {seatPrompt === "sit" ? "Sit" : "Stand"} · E
         </button>
       )}
-      {nearby && (
-        <div className="panel">
-          <h2>{nearby.title}</h2>
-          <p>{nearby.blurb}</p>
-          <a href={nearby.url} target="_blank" rel="noreferrer">
-            Open ↗ <kbd>Enter</kbd>
-          </a>
-        </div>
-      )}
-
-      {ready && !listView && <Clock />}
+      {ready && <Clock />}
       <div className="top-buttons">
         <div className="mix-wrap" ref={mixWrap}>
           <button className="toggle icon-btn" aria-label="Sound settings" title="Sound settings" aria-expanded={mixOpen} aria-controls="mix" onClick={() => setMixOpen((o) => !o)}>
@@ -214,41 +176,7 @@ export default function App() {
             </div>
           )}
         </div>
-        <button className="toggle" onClick={() => setListView((v) => !v)}>
-          {listView ? "Back to world" : "List view"}
-        </button>
       </div>
-      {listView && (
-        <div className="list">
-          <ul className="projects">
-            {projects.map((p) => (
-              <li key={p.id}>
-                <a href={p.url} target="_blank" rel="noreferrer">
-                  {p.title}
-                </a>
-                <p>{p.blurb}</p>
-              </li>
-            ))}
-          </ul>
-          <section className="credits" aria-labelledby="credits-title">
-            <h2 id="credits-title">Credits</h2>
-            <p>{creditsIntro}</p>
-            {credits.map((s) => (
-              <div key={s.title}>
-                <h3>{s.title}</h3>
-                <ul>
-                  {s.lines.map((line, i) => (
-                    <li key={i}>
-                      <CreditLine parts={line} />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </section>
-        </div>
-      )}
-
       <Veil done={ready} progress={progress} />
     </>
   );

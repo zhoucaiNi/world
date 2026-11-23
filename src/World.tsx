@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Text, useGLTF } from "@react-three/drei";
+import { useGLTF } from "@react-three/drei";
 import {
   Color, Fog, Matrix4, MeshStandardMaterial, PlaneGeometry,
   type DirectionalLight, type Group, type HemisphereLight, type InstancedMesh, type Material, type PointLight,
@@ -19,10 +19,9 @@ import {
   Batch, PROP_SWATCHES, Piece, ROOF_SWATCH, kitSwatchMask, nature, recolorKit, town, trs,
   type Placement, type Swap, type Swatch,
 } from "./Kit";
-import { projectById, type Project } from "./projects";
 import { SAILS_AT, WINDMILL_PARTS, houseParts, type Part } from "./buildings";
 import {
-  FACING, ISLAND_RADIUS, MODULE, PROPS, TOWN, TREES, blocked, onPath, seeded, signLocal,
+  FACING, ISLAND_RADIUS, MODULE, PROPS, TOWN, TREES, blocked, onPath, seeded,
   type House, type RoofTone, type Vec2,
 } from "./town";
 import { currentHour, mixPair, night, nightAt, palette, syncUiTheme } from "./theme";
@@ -106,31 +105,7 @@ function Parts({ parts, materials, glow }: { parts: Part[]; materials: PartMater
   );
 }
 
-function Signpost({ at, title, wood }: { at: Vec2; title: string; wood: Material }) {
-  return (
-    <group position={[at[0], 0, at[1]]}>
-      <mesh position={[0, 1.15, 0]} material={wood} castShadow>
-        <boxGeometry args={[0.12, 2.3, 0.12]} />
-      </mesh>
-      <mesh position={[0, 2, 0.1]} material={wood} castShadow>
-        <boxGeometry args={[1.7, 0.62, 0.08]} />
-      </mesh>
-      <Text
-        position={[0, 2, 0.145]}
-        fontSize={0.19}
-        maxWidth={1.5}
-        color="#fff4e4"
-        anchorX="center"
-        anchorY="middle"
-        textAlign="center"
-      >
-        {title}
-      </Text>
-    </group>
-  );
-}
-
-function Building({ h, project, wallMaterial, m }: { h: House; project: Project; wallMaterial: Material; m: Materials }) {
+function Building({ h, wallMaterial, m }: { h: House; wallMaterial: Material; m: Materials }) {
   const parts = useMemo(() => houseParts(h), [h]);
   const materials = useMemo(() => ({ walls: wallMaterial, roof: m.roof[h.roof], prop: m.prop }), [wallMaterial, m, h.roof]);
   return (
@@ -138,7 +113,6 @@ function Building({ h, project, wallMaterial, m }: { h: House; project: Project;
       <group scale={MODULE}>
         <Parts parts={parts} materials={materials} glow={m.window} />
       </group>
-      <Signpost at={signLocal(h)} title={project.title} wood={m.wood} />
     </group>
   );
 }
@@ -274,7 +248,7 @@ const NIGHT_MOON: [number, number, number] = [-8, 16, 6];
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const NIGHT_MUL = new Color("#7682ad");
 
-export default function World({ onNearby, onSeat }: { onNearby: (p: Project | null) => void; onSeat: (s: SeatPrompt) => void }) {
+export default function World({ onSeat }: { onSeat: (s: SeatPrompt) => void }) {
   const m = useMaterials();
   const scene = useThree((s) => s.scene);
 
@@ -296,7 +270,7 @@ export default function World({ onNearby, onSeat }: { onNearby: (p: Project | nu
   const lamps = useRef<(PointLight | null)[]>([]);
 
   const fixed = useMemo(() => ({
-    houseTint: TOWN.houses.map((h) => new Color("#ffffff").lerp(new Color(projectById(h.project).color), 0.95)),
+    houseTint: TOWN.houses.map((h) => new Color("#ffffff").lerp(new Color(h.color), 0.95)),
     nightMul: new Color(),
     sky: new Color(),
     fog: new Fog("#000", 28, 60),
@@ -314,7 +288,7 @@ export default function World({ onNearby, onSeat }: { onNearby: (p: Project | nu
     fixed.fog.color.copy(fixed.sky);
     scene.fog = fixed.fog;
 
-    // Kit materials multiply their texture: tint walls toward each project's pastel, darken bluish at night.
+    // Kit materials multiply their texture: tint walls toward each house's pastel, darken bluish at night.
     fixed.nightMul.set("#ffffff").lerp(NIGHT_MUL, t);
     m.houses.forEach((mat, i) => mat.color.copy(fixed.houseTint[i]).multiply(fixed.nightMul));
     m.roof.terracotta.color.copy(fixed.nightMul);
@@ -375,7 +349,7 @@ export default function World({ onNearby, onSeat }: { onNearby: (p: Project | nu
       </mesh>
 
       {TOWN.houses.map((h, i) => (
-        <Building key={h.project} h={h} project={projectById(h.project)} wallMaterial={m.houses[i]} m={m} />
+        <Building key={i} h={h} wallMaterial={m.houses[i]} m={m} />
       ))}
       <Windmill m={m} />
       <Paving material={m.path} />
@@ -388,7 +362,7 @@ export default function World({ onNearby, onSeat }: { onNearby: (p: Project | nu
       <FountainJet />
       <LampPosts m={m} lights={lamps} />
       <Dog />
-      <Player onNearby={onNearby} onSeat={onSeat} />
+      <Player onSeat={onSeat} />
     </>
   );
 }

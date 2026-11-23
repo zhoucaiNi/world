@@ -1,4 +1,3 @@
-import type { Project } from "./projects";
 
 // World units; x east, z south (so -z is north, up on the minimap).
 
@@ -19,14 +18,14 @@ export const FACING: Record<Facing, { yaw: number; dir: Vec2 }> = {
 export type RoofTone = "terracotta" | "sage";
 
 export type House = {
-  project: Project["id"];
+  color: string; // wall tint
   at: Vec2;
   facing: Facing; // the door's side
   width: number; // cells along the front
   depth: 2; // cells front to back; the gable roof spans exactly two rows
   floors: 1 | 2;
   roof: RoofTone;
-  sign: "left" | "right"; // which side of the door the signpost stands, seen from the doorstep
+  sign: "left" | "right"; // which side of the door the large pot stands, seen from the doorstep
 };
 
 export type PropKind =
@@ -95,11 +94,6 @@ export function doorPoint(h: House): Vec2 {
   return [h.at[0] + dx * out, h.at[1] + dz * out];
 }
 
-/** In the house's own frame, where local +x is the right side seen from the doorstep. */
-export function signLocal(h: House): Vec2 {
-  return [h.sign === "right" ? 1.9 : -1.9, (h.depth * MODULE) / 2 + 0.9];
-}
-
 const PLAZA = 3.5 * MODULE; // half-width of the 7 x 7 cell plaza
 
 // Paves from 0.25 under the wall (so no lawn shows at the threshold) out to the plaza's edge.
@@ -115,10 +109,10 @@ function doorstep(h: House): Rect {
 const around = ([x, z]: Vec2, r: number, a: number): Vec2 => [x + Math.cos(a) * r, z + Math.sin(a) * r];
 
 const HOUSES: House[] = [
-  { project: "studio", at: [-6.25, -16], facing: "s", width: 3, depth: 2, floors: 2, roof: "terracotta", sign: "right" },
-  { project: "reading", at: [6.25, -16], facing: "s", width: 3, depth: 2, floors: 2, roof: "sage", sign: "left" },
-  { project: "radio", at: [-16, 0], facing: "e", width: 3, depth: 2, floors: 2, roof: "sage", sign: "right" },
-  { project: "home", at: [16, 0], facing: "w", width: 3, depth: 2, floors: 2, roof: "terracotta", sign: "right" },
+  { color: "#b8cbe6", at: [-6.25, -16], facing: "s", width: 3, depth: 2, floors: 2, roof: "terracotta", sign: "right" },
+  { color: "#f3dc9c", at: [6.25, -16], facing: "s", width: 3, depth: 2, floors: 2, roof: "sage", sign: "left" },
+  { color: "#f2c4a8", at: [-16, 0], facing: "e", width: 3, depth: 2, floors: 2, roof: "sage", sign: "right" },
+  { color: "#eab3c0", at: [16, 0], facing: "w", width: 3, depth: 2, floors: 2, roof: "terracotta", sign: "right" },
 ];
 
 const CAMPFIRE: Vec2 = [12.5, 12.5];
@@ -234,10 +228,7 @@ function footprint(at: Vec2, shape: Footprint, rot: number): Collider {
 const BUILT: Collider[] = [
   ...TOWN.houses.flatMap((h): Collider[] => {
     const yaw = FACING[h.facing].yaw;
-    return [
-      { kind: "rect", at: h.at, w: h.width * MODULE + 0.3, d: h.depth * MODULE + 0.3, rot: yaw },
-      { kind: "circle", at: toWorld(h.at, yaw, signLocal(h)), r: 0.25 },
-    ];
+    return [{ kind: "rect", at: h.at, w: h.width * MODULE + 0.3, d: h.depth * MODULE + 0.3, rot: yaw }];
   }),
   ...TOWN.props.flatMap((p) => {
     const shape = PROPS[p.kind].collider;
