@@ -76,6 +76,7 @@ export default function Dog() {
   const pace = useRef(0); // ground actually covered (m/s, smoothed): drives the legs
   const stuckFor = useRef(0);
   const petAt = useRef(-Infinity);
+  const pressedWith = useRef("mouse"); // what the last press on the canvas was: the click after a tap says "mouse" in Safari
   const heart = useRef<Mesh>(null);
   const heartMat = useRef<MeshBasicMaterial>(null);
   const { camera, gl, clock } = useThree();
@@ -104,6 +105,7 @@ export default function Dog() {
   useEffect(() => {
     const canvas = gl.domElement;
     const onDown = (e: PointerEvent) => {
+      pressedWith.current = e.pointerType;
       if (e.pointerType === "touch" || e.button !== 0 || document.pointerLockElement !== canvas) return;
       if (inReach(PET_CONE)) pet();
     };
@@ -227,7 +229,7 @@ export default function Dog() {
         scale={SHIBA_SCALE}
         position={[TOWN.dog[0], 0, TOWN.dog[1]]}
         onClick={(e: ThreeEvent<MouseEvent>) => {
-          if ((e.nativeEvent as PointerEvent).pointerType === "touch") pet();
+          if (pressedWith.current === "touch") pet();
         }}
       />
       <mesh ref={heart} geometry={heartGeometry} visible={false} userData={{ noHalftone: true }} renderOrder={10}>
