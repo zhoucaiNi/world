@@ -5,6 +5,7 @@ import { DoubleSide, Mesh, MeshBasicMaterial, MeshStandardMaterial, Shape, Shape
 import { TOWN, blocked, keepClear, live } from "./town";
 import { mixPair, night, palette } from "./theme";
 import { setAim } from "./aim";
+import { petDog } from "./affection";
 
 // "Shiba Inu" by Quaternius (CC0), https://poly.pizza/m/y4wdQpg767
 const SHIBA_URL = "/models/shiba.glb";
@@ -83,6 +84,7 @@ export default function Dog() {
     const now = clock.elapsedTime;
     if (now - petAt.current < PET_COOLDOWN) return;
     petAt.current = now;
+    petDog();
     target.current = null;
     stuckFor.current = 0;
     waitUntil.current = now + PET_ANIM + PET_REST;

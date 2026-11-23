@@ -10,6 +10,7 @@ import { TOWN } from "./town";
 import Joystick, { isTouchScreen } from "./Joystick";
 import About, { HelpIcon } from "./About";
 import { useAim } from "./aim";
+import { useAffection } from "./affection";
 import { seat, type SeatPrompt } from "./Player";
 import { currentHour, nightAt } from "./theme";
 
@@ -81,6 +82,7 @@ export default function App() {
   const mixWrap = useRef<HTMLDivElement>(null);
   const [dpr, setDpr] = useState(MAX_DPR);
   const aim = useAim();
+  const affection = useAffection();
 
   // Lift the veil once every model and texture has loaded, not on a timer. Models stream in
   // waves, so wait for loading to stay finished briefly, and keep a short minimum so it never flashes.
@@ -144,6 +146,14 @@ export default function App() {
       {(locked || TOUCH) && (
         <div className={`pet-prompt${aim === "aimed" ? " show" : ""}`} aria-hidden>
           {locked ? "Click to pet" : "Tap to pet"}
+        </div>
+      )}
+      {(locked || TOUCH) && (
+        <div className={`affection${aim !== "off" ? " show" : ""}`} role="status" aria-label={`Shiba affection ${affection.value} out of 100`}>
+          <svg viewBox="-0.6 -0.6 1.2 1.2" width="14" height="14" aria-hidden><path d="M0 0.5C-0.15 0.35-0.5 0.1-0.5-0.15C-0.5-0.42-0.2-0.5 0-0.28C0.2-0.5 0.5-0.42 0.5-0.15C0.5 0.1 0.15 0.35 0 0.5Z" /></svg>
+          <span className="affection-bar"><i style={{ width: `${affection.value}%` }} /></span>
+          <b>{affection.value}</b>
+          {affection.pets > 0 && <em key={affection.pets} aria-hidden>+5</em>}
         </div>
       )}
 
