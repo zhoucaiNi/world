@@ -231,3 +231,24 @@ h1, h2 { font-family: var(--display); font-weight: var(--display-weight); color:
 @media (prefers-reduced-motion: reduce) {
   .about-backdrop, .about, .about-badge i { animation: none; }
 }
+
+/* The radio's prompts and settings hang in the world, anchored to the radio and facing the camera (Html in Radio.tsx).
+   --half is half the radio's width on screen, set every frame, so they flank it at any distance. */
+.radio-hud { position: relative; width: 0; height: 0; font: 700 13px var(--body); user-select: none; -webkit-user-select: none; }
+.radio-pill {
+  font: inherit; color: var(--ink); background: var(--card); cursor: pointer;
+  border: 1px solid var(--card-line); box-shadow: var(--card-shadow);
+}
+.radio-pill {
+  position: absolute; top: 0; transform: translateY(-50%); display: flex; align-items: center; gap: 7px; white-space: nowrap;
+  padding: 7px 13px 7px 8px; border-radius: var(--button-radius); text-decoration: none; transition: background .12s, color .12s, box-shadow .12s;
+}
+.radio-pill.left { right: calc(var(--half, 30px) + 10px); }
+.radio-pill.right { left: calc(var(--half, 30px) + 10px); }
+.radio-pill.on { border-color: var(--title); }
+.radio-pill.aimed, .radio-pill:hover { background: var(--button); color: var(--button-ink); }
+.radio-pill kbd {
+  display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box;
+  border-radius: 6px; background: var(--card-line); color: var(--title); font: 800 11px var(--body);
+}
+.radio-pill.aimed kbd, .radio-pill:hover kbd { background: rgba(255, 255, 255, .25); color: inherit; }
