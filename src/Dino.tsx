@@ -11,13 +11,13 @@ import { DEBUG, debugActions } from "./debug";
 // (The town's shiba is a separate component, Shiba.tsx.)
 //
 // "Animated LowPoly Dinosaurs" Stegosaurus by Quaternius (CC0), https://quaternius.itch.io/animated-lowpoly-dinosaurs
-// Clips: Stegosaurus_Idle, _Walk, _Run, _Attack, _Jump, _Death. There is no drink clip, so drinking bends the neck and head bones.
+// Clips: Stegosaurus_Idle, _Walk, _Run, _Attack, _Jump, _Death. There is no drink clip, so drinking bends the shoulder, neck and
+// head bones on top of the idle clip.
 const DINO_URL = "/models/jurassic/animal/stegosaurus.glb";
 const SCALE = 0.2; // ~22 units nose to tail facing +z, plates ~10 high: ~4.4 m long, ~2 m to the plate tips, ~1.3 m at the shoulder
 const WALK_CLIP = "Stegosaurus_Walk"; // 2.9 s; the back feet cover ~0.5 m/s at timeScale 1
 const IDLE_CLIP = "Stegosaurus_Idle";
-const NECK_BONE = "Neck";
-const HEAD_BONE = "Head";
+const BEND_BONES = ["Shoulders", "Neck", "Head"] as const; // the chain drinking bends (the front legs hang off Body, so they stay planted)
 
 const SPEED = 0.8; // m/s it roams at (the walk clip is sped up to match)
 const STRIDE = 0.5; // m/s the walk clip covers at timeScale 1, so the feet don't slide
@@ -31,11 +31,16 @@ const WAIT: [number, number] = [3, 7]; // s it stands still between walks
 
 const BANK_CHANCE = 0.35; // of its walks that go to the watering hole
 const FORCE_WALK = 15; // s (debug) it tries to walk to the pond before being put on the bank instead
-const NOSE = 1.5; // m its nose reaches ahead of its centre
+const NOSE = 1.05; // m its nose reaches ahead of its centre with the head lowered to drink (1.5 with the head up)
 const DRINK_FOR: [number, number] = [6, 9]; // s at the water
-const HEAD_EASE = 3; // 1/s: how quickly the head lowers to the water and comes back up
-const NECK_DOWN = 0.5; // rad the neck bends down at the water
-const HEAD_DOWN = 0.25; // rad more at the head
+const HEAD_EASE = 2; // 1/s: how quickly the head lowers to the water and comes back up (~1.2 s, smoothstepped)
+// Drinking pose, in rad pitched down about the animal's side axis (positive lowers the nose), added to each bone in turn.
+// Measured on the idle pose: nose tip from 0.68 m high, 1.50 m ahead, to ~0.14 m high, ~1.04 m ahead (the water is at 0.06).
+const DRINK_BEND = [0.1, 0.6, 0.3]; // Shoulders, Neck, Head
+const SIP_BEND = [0, 0.05, 0.12]; // more at the bottom of each sip: a small nod, the snout tucking ~5 cm down and in, then back
+const SIP_DELAY = 1.3; // s after it starts lowering its head before the first sip
+const SIP_EVERY = 2.6; // s from one sip to the next
+const SIP_TIME = 1.3; // s each sip takes; it rests still for the remainder
 
 const PET_RANGE = 4; // m from the camera
 const PET_CONE = (12 * Math.PI) / 180; // how far off the crosshair the animal may be
@@ -122,7 +127,10 @@ export default function Dino() {
   const { scene, animations } = useGLTF(DINO_URL);
   const { actions } = useAnimations(animations, root);
   const playing = useRef<string | null>(null);
-  const bones = useRef<{ neck: Bone | null; head: Bone | null }>({ neck: null, head: null });
+  const bones = useRef<Bone[]>([]); // BEND_BONES, parent first
+  // Per bone: the clip's pose before this frame's bend, and the bent pose written. The mixer only writes a bone when the clip's
+  // value changes, and the idle clip holds the neck and head still, so a bend left on the bone would pile up frame after frame.
+  const pose = useRef(BEND_BONES.map(() => ({ clip: new Quaternion(), bent: new Quaternion() })));
   const speed = useRef(0); // commanded, eased toward the wanted speed
   const pace = useRef(0); // ground actually covered (m/s, smoothed): drives the legs
   const lowered = useRef(0); // 0 head up .. 1 head at the water, eased
@@ -133,7 +141,7 @@ export default function Dino() {
   const heart = useRef<Mesh>(null);
   const heartMat = useRef<MeshBasicMaterial>(null);
   const st = useRef({ mode: "wait" as Mode, until: 1.5, target: null as Vector3 | null, bank: false, stuck: 0, since: 0, dur: 0 });
-  const q = useRef({ side: new Vector3(), qg: new Quaternion(), qp: new Quaternion(), qr: new Quaternion() });
+  const q = useRef({ side: new Vector3(), qg: new Quaternion(), qp: new Quaternion(), qpi: new Quaternion(), qr: new Quaternion() });
   const { camera, gl, clock } = useThree();
 
   const pet = () => {
@@ -181,18 +189,17 @@ export default function Dino() {
 
   useEffect(() => {
     scene.traverse((o) => { o.castShadow = true; });
-    bones.current = { neck: scene.getObjectByName(NECK_BONE) as Bone | null, head: scene.getObjectByName(HEAD_BONE) as Bone | null };
+    const found = BEND_BONES.map((n) => scene.getObjectByName(n) as Bone | undefined);
+    bones.current = found.every((b) => b?.parent) ? (found as Bone[]) : [];
   }, [scene]);
 
-  /** Rotates a bone about the animal's own side axis, whatever the bone's rest orientation. Applied on top of the clip each frame. */
-  const bend = (g: Group, bone: Bone, angle: number) => {
-    if (!bone.parent) return;
-    const { side, qg, qp, qr } = q.current;
-    g.getWorldQuaternion(qg);
-    side.set(1, 0, 0).applyQuaternion(qg);
+  /** Pitches a bone about the world axis `side` (the animal's own side axis, so positive lowers the nose), whatever the bone's
+   *  rest orientation, on top of the pose it has now. */
+  const bend = (bone: Bone, side: Vector3, angle: number) => {
+    const { qp, qpi, qr } = q.current;
     qr.setFromAxisAngle(side, angle);
-    bone.parent.getWorldQuaternion(qp);
-    qr.premultiply(qp.clone().invert()).multiply(qp); // world rotation -> the bone parent's frame
+    bone.parent!.getWorldQuaternion(qp);
+    qr.premultiply(qpi.copy(qp).invert()).multiply(qp); // world rotation -> the bone parent's frame
     bone.quaternion.premultiply(qr);
   };
 
@@ -294,16 +301,23 @@ export default function Dino() {
     const walkAction = actions[WALK_CLIP];
     if (walkAction) walkAction.timeScale = Math.max(0.4, Math.min(2, pace.current / STRIDE));
 
-    // Head and neck on top of the clip: drinking eases the head down to the water and back up (also if it is petted mid-drink).
-    const { neck, head } = bones.current;
+    // Shoulders, neck and head on top of the clip: drinking eases the head down to the water, sips with a slow small nod, and
+    // eases back up (also if it is petted mid-drink).
     lowered.current += ((s.mode === "drink" ? 1 : 0) - lowered.current) * (1 - Math.exp(-HEAD_EASE * dt));
-    if (neck && head) {
-      const low = lowered.current;
-      if (low > 0.001) {
-        bend(g, neck, NECK_DOWN * low + 0.05 * low * Math.sin(now * 2.5));
-        bend(g, head, HEAD_DOWN * low);
-      }
-    }
+    const l = lowered.current;
+    const low = l * l * (3 - 2 * l); // smoothstep: no jolt as the head starts down or up
+    // Sips start once the head is down; not tied to the mode, so a pet mid-sip doesn't snap the nod (`low` fades it out).
+    const t = now - s.since - SIP_DELAY;
+    const sip = t > 0 && t % SIP_EVERY < SIP_TIME ? Math.sin((Math.PI * (t % SIP_EVERY)) / SIP_TIME) ** 2 : 0; // 0..1..0, smooth
+    const { side, qg } = q.current;
+    side.set(1, 0, 0).applyQuaternion(g.getWorldQuaternion(qg));
+    bones.current.forEach((bone, i) => {
+      const p = pose.current[i];
+      if (bone.quaternion.equals(p.bent)) bone.quaternion.copy(p.clip); // the mixer left it alone: undo last frame's bend
+      p.clip.copy(bone.quaternion);
+      bend(bone, side, low * (DRINK_BEND[i] + SIP_BEND[i] * sip));
+      p.bent.copy(bone.quaternion);
+    });
 
     const h = heart.current;
     if (h && heartMat.current) {
