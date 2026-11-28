@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { WORLD } from "./worldConfig";
 
 export function HelpIcon() {
   return (
@@ -49,7 +50,7 @@ export default function About({ onClose, touch }: { onClose: () => void; touch: 
       >
         <span className="about-badge"><i aria-hidden="true" />Work in progress</span>
         <h2 id="about-title">Welcome to the world</h2>
-        <p className="about-intro">A tiny town you can wander around. It's still being built, so things will keep changing.</p>
+        <p className="about-intro">{WORLD.text.intro}</p>
         <ul className="about-list">
           <li>
             <span className="about-icon">{WALK}</span>
@@ -62,7 +63,7 @@ export default function About({ onClose, touch }: { onClose: () => void; touch: 
             <span className="about-icon">{PAW}</span>
             <div>
               <b>Pet the dog</b>
-              <p>A shiba wanders the town. Walk up to it, look at it and {tap.toLowerCase()} to pet it.</p>
+              <p>{WORLD.text.dogAbout} Walk up to it, look at it and {tap.toLowerCase()} to pet it.</p>
             </div>
           </li>
           <li>

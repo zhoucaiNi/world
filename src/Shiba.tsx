@@ -65,7 +65,7 @@ function pickSpot(from: Vector3): Vector3 | null {
 }
 
 /** The shiba roams on its own: walk to a random spot, idle a few seconds, repeat. */
-export default function Dog() {
+export default function Shiba() {
   const root = useRef<Group>(null);
   const { scene, animations } = useGLTF(SHIBA_URL);
   const { actions } = useAnimations(animations, root);

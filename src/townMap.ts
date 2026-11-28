@@ -1,4 +1,4 @@
-import { FACING, ISLAND_RADIUS, MODULE, PROPS, TOWN, TREES, type Vec2 } from "./town";
+import { FACING, ISLAND_RADIUS, MODULE, POND, POND_ROCKS, PROPS, TOWN, TREES, pondRadius, type Vec2 } from "./town";
 
 export const VIEW = ISLAND_RADIUS + 1.5; // world units from the map's centre to its edge
 const ISLAND = ISLAND_RADIUS + 0.6;
@@ -47,8 +47,15 @@ export function drawTownMap(size: number, scale: number, layers: number = MAP_LA
   }
 
   if (layers > 1) {
-    ctx.fillStyle = token("--map-path");
-    for (const { from, to } of TOWN.paths) ctx.fillRect(from[0], from[1], to[0] - from[0], to[1] - from[1]);
+    // The park's "paths" are worn earth: the plaza becomes a soft oval, the lane a plain strip.
+    ctx.fillStyle = token(TOWN.pond ? "--map-earth" : "--map-path");
+    for (const { from, to } of TOWN.paths) {
+      if (TOWN.pond && to[0] - from[0] > 10) {
+        ctx.beginPath();
+        ctx.ellipse((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, (to[0] - from[0]) / 2, (to[1] - from[1]) / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else ctx.fillRect(from[0], from[1], to[0] - from[0], to[1] - from[1]);
+    }
   }
 
   if (layers > 2) {
@@ -60,6 +67,25 @@ export function drawTownMap(size: number, scale: number, layers: number = MAP_LA
       ctx.fillStyle = token(map);
       ctx.fill();
       if (p.kind === "fountain") ctx.stroke();
+    }
+    if (TOWN.pond) {
+      ctx.beginPath();
+      for (let i = 0; i <= 48; i++) {
+        const a = (i / 48) * Math.PI * 2;
+        const r = pondRadius(a);
+        const x = POND.at[0] + Math.cos(a) * r;
+        const z = POND.at[1] + Math.sin(a) * r;
+        if (i) ctx.lineTo(x, z); else ctx.moveTo(x, z);
+      }
+      ctx.closePath();
+      ctx.fillStyle = token("--map-water");
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = token("--map-rock");
+      for (const k of POND_ROCKS) {
+        circle(ctx, k.at, k.r);
+        ctx.fill();
+      }
     }
   }
 
@@ -73,18 +99,20 @@ export function drawTownMap(size: number, scale: number, layers: number = MAP_LA
     }
     ctx.globalAlpha = 1;
 
-    const { at, facing } = TOWN.windmill;
-    rect(ctx, at, MODULE, MODULE, FACING[facing].yaw);
-    ctx.fillStyle = token("--map-path");
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(at[0] - 2.2, at[1] - 2.2);
-    ctx.lineTo(at[0] + 2.2, at[1] + 2.2);
-    ctx.moveTo(at[0] + 2.2, at[1] - 2.2);
-    ctx.lineTo(at[0] - 2.2, at[1] + 2.2);
-    ctx.lineWidth = hairline * 1.5;
-    ctx.stroke();
+    if (TOWN.windmill) {
+      const { at, facing } = TOWN.windmill;
+      rect(ctx, at, MODULE, MODULE, FACING[facing].yaw);
+      ctx.fillStyle = token("--map-path");
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(at[0] - 2.2, at[1] - 2.2);
+      ctx.lineTo(at[0] + 2.2, at[1] + 2.2);
+      ctx.moveTo(at[0] + 2.2, at[1] - 2.2);
+      ctx.lineTo(at[0] - 2.2, at[1] + 2.2);
+      ctx.lineWidth = hairline * 1.5;
+      ctx.stroke();
+    }
   }
 
   if (layers > 2) {

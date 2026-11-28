@@ -7,6 +7,7 @@ import {
 import { mixPair, night, palette } from "./theme";
 import { nature, trs } from "./Kit";
 import { TREES, seeded } from "./town";
+import { WORLD } from "./worldConfig";
 
 const TREE_TYPES = ["tree_default", "tree_oak", "tree_detailed", "tree_pineRoundA"];
 const TREE_URLS = TREE_TYPES.map(nature);
@@ -22,12 +23,7 @@ const tones = TONES.map(() => new Color());
 const HALFTONE_SCALE = 3.5; // dots this much finer than on trees: the birds are about 0.3 m long
 
 // Each model paints its atlas in a handful of flat colours; each is swapped for a palette tone.
-const BODY_MODELS = [
-  { url: "/models/birds/jay.glb", length: 0.32, yaw: -Math.PI / 2, // modelled facing +x
-    swap: [[[79, 168, 0], 0], [[60, 131, 168], 1], [[181, 111, 49], 2], [[25, 25, 25], 3], [[57, 57, 57], 3], [[200, 200, 200], 4]] },
-  { url: "/models/birds/sparrow.glb", length: 0.34, yaw: 0,
-    swap: [[[197, 118, 52], 5], [[196, 185, 165], 4], [[98, 64, 36], 6], [[9, 8, 4], 3]] },
-] as const;
+const BODY_MODELS = WORLD.birds;
 
 const functions = /* glsl */ `
   attribute vec4 aFrom; // perch (xyz) and facing it takes off from
@@ -118,7 +114,9 @@ function bodyOf(scene: Object3D, length: number, yaw: number, swap: readonly (re
   const c = box.getCenter(new Vector3());
   const k = length / (box.max.z - box.min.z);
   geo.translate(-c.x, -box.min.y, -c.z).scale(k, k, k);
-  geo.setAttribute("aTone", new BufferAttribute(toneIds(geo, (mesh.material as MeshStandardMaterial).map!.image, swap), 1));
+  const map = (mesh.material as MeshStandardMaterial).map;
+  // No atlas or no swap table: every vertex takes tone 0.
+  geo.setAttribute("aTone", new BufferAttribute(map && swap.length ? toneIds(geo, map.image, swap) : new Float32Array(geo.getAttribute("position").count), 1));
   return geo;
 }
 

@@ -1,10 +1,11 @@
 import { useSyncExternalStore } from "react";
+import { WORLD } from "./worldConfig";
 
 // How fond the shiba is of the visitor, 0..100. It starts at 50. Only the first pet of each day counts, for +5, and every
 // day that passes without a pet takes off 1. A day is a calendar day by the visitor's clock. Kept in a cookie so it
 // survives visits. Only the moments are stored (the value as of the last pet, and when you first pet it), and the decay is
 // worked out from the clock, so nothing has to run while the page is closed.
-const NAME = "world-dog";
+const NAME = WORLD.affectionCookie;
 const START = 50;
 const STEP = 5;
 const MAX = 100;

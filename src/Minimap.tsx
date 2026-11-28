@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { TOWN, live, type Vec2 } from "./town";
 import { night } from "./theme";
+import { WORLD } from "./worldConfig";
 import { VIEW, drawTownMap, token } from "./townMap";
 
 export default function Minimap() {
@@ -92,5 +93,5 @@ export default function Minimap() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  return <canvas ref={ref} className="minimap" role="img" aria-label="Town map" />;
+  return <canvas ref={ref} className="minimap" role="img" aria-label={WORLD.text.mapLabel} />;
 }

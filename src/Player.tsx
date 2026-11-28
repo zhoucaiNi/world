@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Vector3 } from "three";
 import { SEATS, TOWN, keepClear, live, type Seat } from "./town";
+import { setAtFire } from "./portal";
 import { night } from "./theme";
 import { updateSound } from "./Sound";
 import { FOUNTAIN_AT } from "./Fountain";
@@ -181,6 +182,8 @@ export default function Player({ onSeat }: { onSeat: (s: SeatPrompt) => void }) 
     }
     near.current = nb;
     const want: SeatPrompt = sit.current ? (sit.current.down ? "stand" : null) : nb ? "sit" : null;
+    const seated = sit.current;
+    setAtFire(!!seated && seated.down && seated.t >= 1 && Math.hypot(seated.bench.at[0] - TOWN.campfire[0], seated.bench.at[1] - TOWN.campfire[1]) < 3);
     if (want !== prompt.current) { prompt.current = want; onSeat(want); }
 
     updateSound(
