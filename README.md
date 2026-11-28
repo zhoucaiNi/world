@@ -7,7 +7,8 @@ Vite + React + TypeScript + three.js (@react-three/fiber, drei). No API keys, no
     npm run dev      # http://localhost:5173
     npm run build    # typecheck + production build to dist/
 
-Two worlds share one layout: the town (default) and a Jurassic park, `?world=jurassic`. Add `&debug` for developer controls: in the
+Two worlds share one layout: the town (default) and a Jurassic park, `?world=jurassic`. Sit at the campfire and press the
+button (or F) to switch between them. Add `&debug` for developer controls: in the
 Jurassic world a "Go drink · G" button sends the stegosaurus to the pond.
 
 ## Edit

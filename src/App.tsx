@@ -15,6 +15,7 @@ import { seat, type SeatPrompt } from "./Player";
 import { currentHour, nightAt } from "./theme";
 import { WORLD } from "./worldConfig";
 import { DEBUG, debugActions } from "./debug";
+import { PORTAL_LABEL, switchWorld, useAtFire } from "./portal";
 
 const TOUCH = isTouchScreen();
 const MAX_DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -75,6 +76,7 @@ function Veil({ done, progress }: { done: boolean; progress: number }) {
 
 export default function App() {
   const [ready, setReady] = useState(false);
+  const atFire = useAtFire();
   const [seatPrompt, setSeatPrompt] = useState<SeatPrompt>(null);
   const [muted, setMutedState] = useState(isMuted);
   useEffect(() => onMuteChange(setMutedState), []); // the radio can un-mute the world
@@ -100,6 +102,14 @@ export default function App() {
     document.addEventListener("pointerlockchange", sync);
     return () => document.removeEventListener("pointerlockchange", sync);
   }, []);
+
+  // Seated at the campfire, F presses the world-switch button (the mouse is locked, so the button can't be clicked).
+  useEffect(() => {
+    if (!atFire) return;
+    const key = (e: KeyboardEvent) => { if (e.key.toLowerCase() === "f" && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) switchWorld(); };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [atFire]);
 
   useEffect(() => {
     if (!mixOpen) return;
@@ -159,6 +169,9 @@ export default function App() {
         </button>
       )}
       {ready && <Clock />}
+      {ready && atFire && (
+        <button className="toggle portal-btn" onClick={(e) => { e.currentTarget.blur(); switchWorld(); }}>{PORTAL_LABEL}{!TOUCH && " · F"}</button>
+      )}
       {ready && DEBUG && WORLD.id === "jurassic" && (
         <button className="toggle debug-btn" title="Debug: send the animal to the pond to drink (G)" onClick={(e) => { e.currentTarget.blur(); debugActions.drink(); }}>
           Go drink · G

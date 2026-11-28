@@ -272,3 +272,8 @@ h1, h2 { font-family: var(--display); font-weight: var(--display-weight); color:
 
 /* `&debug`: the developer button that sends the animal to drink. */
 .debug-btn { position: fixed; left: 14px; bottom: 14px; z-index: 45; font: 700 12px var(--body); padding: 0 12px; height: 30px; }
+
+/* The campfire's world-switch button, and the fade before the page reloads into the other world. */
+.portal-btn { position: fixed; left: 50%; bottom: 104px; transform: translateX(-50%); z-index: 40; }
+@keyframes world-fade { to { opacity: 1; } }
+.world-switching body::after { content: ""; position: fixed; inset: 0; z-index: 999; background: #000; opacity: 0; animation: world-fade 0.45s ease-in forwards; }
