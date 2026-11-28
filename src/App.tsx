@@ -13,6 +13,8 @@ import { useAim } from "./aim";
 import { useAffection } from "./affection";
 import { seat, type SeatPrompt } from "./Player";
 import { currentHour, nightAt } from "./theme";
+import { WORLD } from "./worldConfig";
+import { DEBUG, debugActions } from "./debug";
 
 const TOUCH = isTouchScreen();
 const MAX_DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -29,7 +31,7 @@ function SoundIcon({ level }: { level: 0 | 1 | 2 }) {
   );
 }
 
-const VOLUME_LABELS: Record<Channel, string> = { master: "Master", music: "Music", fire: "Campfire", fountain: "Fountain", crickets: "Crickets", birds: "Birds" };
+const VOLUME_LABELS: Record<Channel, string> = { master: "Master", music: "Music", fire: "Campfire", fountain: WORLD.text.waterLabel, crickets: "Crickets", birds: WORLD.text.birdsLabel };
 
 const TIPS = [
   "Click to look around, WASD or arrows to walk.",
@@ -157,8 +159,13 @@ export default function App() {
         </button>
       )}
       {ready && <Clock />}
+      {ready && DEBUG && WORLD.id === "jurassic" && (
+        <button className="toggle debug-btn" title="Debug: send the animal to the pond to drink (G)" onClick={(e) => { e.currentTarget.blur(); debugActions.drink(); }}>
+          Go drink · G
+        </button>
+      )}
       {ready && (
-        <div className="affection" role="status" aria-label={`Shiba affection ${affection.value} out of 100${affection.happyToday ? ", petted today" : ""}`} title="The shiba's affection for you. Pet it once a day; it loses 1 for each day you skip.">
+        <div className="affection" role="status" aria-label={`${WORLD.text.affectionAria} ${affection.value} out of 100${affection.happyToday ? ", petted today" : ""}`} title={WORLD.text.affectionTitle}>
           <svg viewBox="-0.6 -0.6 1.2 1.2" width="14" height="14" aria-hidden><path d="M0 0.5C-0.15 0.35-0.5 0.1-0.5-0.15C-0.5-0.42-0.2-0.5 0-0.28C0.2-0.5 0.5-0.42 0.5-0.15C0.5 0.1 0.15 0.35 0 0.5Z" /></svg>
           <span className="affection-bar"><i style={{ width: `${affection.value}%` }} /></span>
           <b>{affection.value}</b>

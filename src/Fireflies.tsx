@@ -1,23 +1,27 @@
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { AdditiveBlending, BufferAttribute, BufferGeometry, ShaderMaterial, type Points } from "three";
+import { AdditiveBlending, BufferAttribute, BufferGeometry, Color, ShaderMaterial, type Points } from "three";
 import { night } from "./theme";
+import { WORLD } from "./worldConfig";
 import { ISLAND_RADIUS, TOWN, TREES, blocked, onPath, seeded } from "./town";
 
-const COUNT = 140;
+const F = WORLD.atmosphere.fireflies;
+const COUNT = F.count;
 
 const vertex = /* glsl */ `
   attribute vec4 aSeed; // x, y: wander phases, z: blink rate, w: blink phase
   uniform float uTime;
   uniform float uPx;
+  uniform float uWander;
+  uniform float uSize;
   varying float vGlow;
   varying float vTint;
   void main() {
     float t = uTime;
     vec3 p = position;
     // Lissajous figure-eight, a few metres wide, with a slow bob.
-    p.x += sin(t * 0.21 + aSeed.x) * 1.6;
-    p.z += sin(t * 0.42 + aSeed.x) * 1.0 + cos(t * 0.17 + aSeed.y) * 0.6;
+    p.x += sin(t * 0.21 + aSeed.x) * 1.6 * uWander;
+    p.z += sin(t * 0.42 + aSeed.x) * 1.0 + cos(t * 0.17 + aSeed.y) * 0.6 * uWander;
     p.y += sin(t * 0.33 + aSeed.y) * 0.35;
     // Mostly lit, with a brief dim between pulses.
     float b = sin(t * aSeed.z + aSeed.w) * 0.5 + 0.5;
@@ -25,13 +29,15 @@ const vertex = /* glsl */ `
     vTint = fract(aSeed.w * 0.37);
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     // Perspective size, clamped so it reads far away and stays small up close.
-    gl_PointSize = clamp(260.0 / -mv.z, 22.0, 48.0) * uPx;
+    gl_PointSize = clamp(260.0 / -mv.z, 22.0, 48.0) * uSize * uPx;
     gl_Position = projectionMatrix * mv;
   }
 `;
 
 const fragment = /* glsl */ `
   uniform float uNight;
+  uniform vec3 uColA;
+  uniform vec3 uColB;
   varying float vGlow;
   varying float vTint;
   void main() {
@@ -39,7 +45,7 @@ const fragment = /* glsl */ `
     float halo = 1.0 - smoothstep(0.0, 1.0, d);
     float a = max(pow(halo, 2.2) * 0.85, 1.0 - smoothstep(0.0, 0.22, d)) * vGlow * uNight;
     if (a < 0.01) discard;
-    vec3 col = mix(vec3(0.91, 1.0, 0.60), vec3(1.0, 0.89, 0.54), vTint);
+    vec3 col = mix(uColA, uColB, vTint);
     gl_FragColor = vec4(col * a, a);
   }
 `;
@@ -52,17 +58,23 @@ function scatter() {
     const pick = rnd();
     let x: number;
     let z: number;
-    if (pick < 0.4) {
+    if (pick < F.share[0]) {
       const t = TREES[Math.floor(rnd() * TREES.length)];
       const a = rnd() * Math.PI * 2;
       const r = 1 + rnd() * 3.5;
       x = t.at[0] + Math.cos(a) * r;
       z = t.at[1] + Math.sin(a) * r;
-    } else if (pick < 0.65) {
+    } else if (pick < F.share[1]) {
       const a = rnd() * Math.PI * 2;
       const r = 2 + rnd() * 5;
       x = cx + Math.cos(a) * r;
       z = cz + Math.sin(a) * r;
+    } else if (pick < F.share[2]) {
+      // Around the fountain basin (its collider covers the middle).
+      const a = rnd() * Math.PI * 2;
+      const r = 3 + rnd() * 4;
+      x = Math.cos(a) * r;
+      z = Math.sin(a) * r;
     } else {
       const a = rnd() * Math.PI * 2;
       const r = Math.sqrt(rnd()) * (ISLAND_RADIUS - 2);
@@ -96,7 +108,8 @@ export default function Fireflies() {
     const material = new ShaderMaterial({
       vertexShader: vertex,
       fragmentShader: fragment,
-      uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uPx: { value: 1 } },
+      uniforms: { uTime: { value: 0 }, uNight: { value: 0 }, uPx: { value: 1 }, uWander: { value: F.wander }, uSize: { value: F.size },
+        uColA: { value: new Color(...F.colors[0]) }, uColB: { value: new Color(...F.colors[1]) } },
       transparent: true,
       depthWrite: false,
       blending: AdditiveBlending,

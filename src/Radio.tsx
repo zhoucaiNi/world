@@ -112,6 +112,7 @@ export default function Radio() {
   return (
     <>
     <group position={[RADIO.at[0], RADIO.y, RADIO.at[1]]} rotation={[0, RADIO.rot, 0]}>
+    <group rotation={[RADIO.tilt, 0, 0]}>
       <mesh position={[0, 0.15, 0]} material={mats.body} castShadow>
         <boxGeometry args={[0.46, 0.3, 0.18]} />
       </mesh>
@@ -147,6 +148,7 @@ export default function Radio() {
       <mesh position={[0.23, 0.62, 0]} material={mats.brass}>
         <sphereGeometry args={[0.015, 8, 6]} />
       </mesh>
+    </group>
     </group>
       {ui.near && (
         <Html position={[RADIO.at[0], RADIO.y + 0.15, RADIO.at[1]]} center zIndexRange={[20, 0]}>

@@ -22,6 +22,7 @@
   /* Minimap (Minimap.tsx reads these; glow colours must be 6-digit hex) */
   --map-lawn: #c3d9ae;
   --map-path: #f1e6d4;
+  --map-earth: #c9b48a;
   --map-tree: #8fb98a;
   --map-water: #9fd0e4;
   --map-rock: #cbc2b6;
@@ -57,6 +58,7 @@
   --display-weight: 400;
   --map-lawn: #2f4a3c;
   --map-path: #4d5670;
+  --map-earth: #4a4a3a;
   --map-tree: #1f3a2d;
   --map-water: #3c6a8a;
   --map-rock: #555b70;
@@ -267,3 +269,6 @@ h1, h2 { font-family: var(--display); font-weight: var(--display-weight); color:
   border-radius: 6px; background: var(--card-line); color: var(--title); font: 800 11px var(--body);
 }
 .radio-pill.aimed kbd, .radio-pill:hover kbd { background: rgba(255, 255, 255, .25); color: inherit; }
+
+/* `&debug`: the developer button that sends the animal to drink. */
+.debug-btn { position: fixed; left: 14px; bottom: 14px; z-index: 45; font: 700 12px var(--body); padding: 0 12px; height: 30px; }

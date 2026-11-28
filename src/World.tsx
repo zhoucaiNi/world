@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject } from "react";
+import { lazy, useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import {
@@ -7,8 +7,10 @@ import {
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import Player, { type SeatPrompt } from "./Player";
-import Sky from "./Sky";
-import Dog from "./Dog";
+import Sky, { LightShafts, Mist, fogColourAt } from "./Sky";
+import { WORLD } from "./worldConfig";
+// One animal per world, loaded on demand: the shiba in the town, the stegosaurus in the park. They share no code.
+const Animal = lazy(() => (WORLD.id === "jurassic" ? import("./Dino") : import("./Shiba")));
 import Campfire from "./Campfire";
 import { FountainJet, waterMaterial } from "./Fountain";
 import Fireflies from "./Fireflies";
@@ -16,13 +18,15 @@ import Radio from "./Radio";
 import Birds from "./Birds";
 import { Grass, grassMaterial } from "./Grass";
 import { Bushes, Flowers, bushMaterial, flowerMaterial } from "./Flora";
+import { JurassicLawn, JurassicTrees, PondRim } from "./Prehistoric";
+import { Pond, WildGround } from "./Wild";
 import {
-  Batch, PROP_SWATCHES, Piece, ROOF_SWATCH, kitSwatchMask, nature, recolorKit, town, trs,
+  Batch, PROP_SWATCHES, Piece, ROOF_SWATCH, jurassicSwap, kitSwatchMask, nature, recolorKit, town, trs,
   type Placement, type Swap, type Swatch,
 } from "./Kit";
 import { SAILS_AT, WINDMILL_PARTS, houseParts, type Part } from "./buildings";
 import {
-  FACING, ISLAND_RADIUS, MODULE, PROPS, TOWN, TREES, blocked, onPath, seeded,
+  FACING, ISLAND_RADIUS, MODULE, PROPS, TOWN, TREES, blocked, inPond, onLane, onPath, seeded,
   type House, type RoofTone, type Vec2,
 } from "./town";
 import { currentHour, mixPair, night, nightAt, palette, syncUiTheme } from "./theme";
@@ -119,7 +123,7 @@ function Building({ h, wallMaterial, m }: { h: House; wallMaterial: Material; m:
 }
 
 function Windmill({ m }: { m: Materials }) {
-  const { at, facing } = TOWN.windmill;
+  const { at, facing } = TOWN.windmill!;
   const sails = useRef<Group>(null);
   const materials = useMemo(() => ({ walls: m.roof.terracotta, roof: m.roof.terracotta, prop: m.prop }), [m]);
   const swap = useMemo(() => (): Material => m.roof.terracotta, [m]);
@@ -146,8 +150,9 @@ function Props({ swaps }: { swaps: Record<"town" | "nature", Swap> }) {
     () => TOWN.props.map((p): Placement => {
       const def = PROPS[p.kind];
       const [ox, oz] = def.offset ?? [0, 0];
-      const matrix = trs(p.at[0], p.y ?? 0, p.at[1], p.rot ?? 0).multiply(trs(-ox * def.scale, 0, -oz * def.scale, 0, def.scale));
-      return { url: def.url, swap: swaps[def.kit], matrix };
+      const matrix = trs(p.at[0], p.y ?? 0, p.at[1], p.rot ?? 0).multiply(trs(-ox * def.scale, 0, -oz * def.scale, def.yaw ?? 0, def.scale));
+      if (def.stretch) matrix.multiply(new Matrix4().makeScale(1, def.stretch, 1));
+      return { url: def.url, swap: def.kit === "jurassic" ? jurassicSwap : swaps[def.kit], matrix };
     }),
     [swaps],
   );
@@ -185,6 +190,7 @@ function Paving({ material }: { material: Material }) {
 }
 
 function Trees({ swap }: { swap: Swap }) {
+  if (WORLD.flora) return <JurassicTrees />;
   const items = useMemo(
     () => TREES.map(({ at, type, scale, turn }): Placement => ({ url: nature(type), swap, matrix: trs(at[0], 0, at[1], turn, scale) })),
     [swap],
@@ -193,7 +199,8 @@ function Trees({ swap }: { swap: Swap }) {
 }
 
 type Spot = [number, number, number, number];
-function spots(seed: number, count: number, minScale: number, maxScale: number): Spot[] {
+// In the park, low plants (`soft`) also creep onto the worn earth, thinly, but keep off the pond and the lane.
+function spots(seed: number, count: number, minScale: number, maxScale: number, pathPad = 0.2, blockPad = 0.6, soft = false): Spot[] {
   const rnd = seeded(seed);
   const out: Spot[] = [];
   while (out.length < count) {
@@ -203,19 +210,33 @@ function spots(seed: number, count: number, minScale: number, maxScale: number):
     const z = Math.sin(a) * r;
     const turn = rnd() * Math.PI * 2;
     const scale = minScale + rnd() * (maxScale - minScale);
-    if (!onPath(x, z, 0.2) && !blocked(x, z, 0.6)) out.push([x, z, turn, scale]);
+    if (WORLD.flora) {
+      if (inPond(x, z, 0.9) || onLane(x, z, 0.5) || blocked(x, z, blockPad)) continue;
+      if (onPath(x, z, pathPad) && !(soft && rnd() < 0.2)) continue;
+      out.push([x, z, turn, scale]);
+    } else if (!onPath(x, z, pathPad) && !blocked(x, z, blockPad)) out.push([x, z, turn, scale]);
   }
   return out;
 }
 
 /** Grass clumps, bushes and a few flowers across the lawn (instanced, no halftone). */
 function Lawn({ grass, bush, yellow, purple }: Record<"grass" | "bush" | "yellow" | "purple", MeshStandardMaterial>) {
+  const fl = WORLD.flora;
+  const prehistoric = useMemo(() => fl && {
+    ferns: spots(11, fl.ferns, 1.9, 3.0, 0.2, 0.6, true),
+    fernModels: spots(17, fl.fernModels, 0.8, 1.6, 0.5, 0.9, true),
+    cycads: spots(37, fl.cycads, 0.8, 1.3, 0.9, 1.2),
+    treeFerns: spots(41, fl.treeFerns, 0.8, 1.3, 0.9, 1.2),
+    horsetails: spots(53, fl.horsetails, 0.8, 1.4, 0.4, 0.8, true),
+    boulders: spots(61, fl.boulders, 0.5, 1.3, 1.0, 1.4),
+  }, [fl]);
   const layout = useMemo(() => ({
     grass: spots(11, 1400, 1.0, 1.7),
     bush: spots(37, 50, 1.6, 2.4),
     yellow: spots(41, 60, 1.6, 2.2),
     purple: spots(53, 60, 1.6, 2.2),
   }), []);
+  if (prehistoric) return <JurassicLawn layout={prehistoric} />;
   return (
     <>
       <Grass spots={layout.grass} material={grass} />
@@ -244,8 +265,8 @@ function LampPosts({ m, lights }: { m: Materials; lights: MutableRefObject<(Poin
   );
 }
 
-const DAY_SUN: [number, number, number] = [10, 16, 6];
-const NIGHT_MOON: [number, number, number] = [-8, 16, 6];
+const A = WORLD.atmosphere;
+const [DAY_SUN, NIGHT_MOON] = A.sunPos;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const NIGHT_MUL = new Color("#7682ad");
 
@@ -274,7 +295,7 @@ export default function World({ onSeat }: { onSeat: (s: SeatPrompt) => void }) {
     houseTint: TOWN.houses.map((h) => new Color("#ffffff").lerp(new Color(h.color), 0.95)),
     nightMul: new Color(),
     sky: new Color(),
-    fog: new Fog("#000", 28, 60),
+    fog: new Fog("#000", A.fog.near, A.fog.far),
   }), []);
 
   // Recolour every frame (a few dozen colour copies): lights and materials that mount after the
@@ -286,7 +307,7 @@ export default function World({ onSeat }: { onSeat: (s: SeatPrompt) => void }) {
 
     mixPair(palette.sky, t, fixed.sky);
     scene.background = fixed.sky;
-    fixed.fog.color.copy(fixed.sky);
+    fogColourAt(t, fixed.fog.color);
     scene.fog = fixed.fog;
 
     // Kit materials multiply their texture: tint walls toward each house's pastel, darken bluish at night.
@@ -319,11 +340,11 @@ export default function World({ onSeat }: { onSeat: (s: SeatPrompt) => void }) {
     if (hemi.current) {
       mixPair(palette.hemiSky, t, hemi.current.color);
       mixPair(palette.hemiGround, t, hemi.current.groundColor);
-      hemi.current.intensity = lerp(0.9, 2.6, t);
+      hemi.current.intensity = lerp(A.hemi[0], A.hemi[1], t);
     }
     if (sun.current) {
       mixPair(palette.sun, t, sun.current.color);
-      sun.current.intensity = lerp(1.6, 1.0, t);
+      sun.current.intensity = lerp(A.sun[0], A.sun[1], t);
       sun.current.position.set(
         lerp(DAY_SUN[0], NIGHT_MOON[0], t), lerp(DAY_SUN[1], NIGHT_MOON[1], t), lerp(DAY_SUN[2], NIGHT_MOON[2], t),
       );
@@ -334,6 +355,8 @@ export default function World({ onSeat }: { onSeat: (s: SeatPrompt) => void }) {
   return (
     <>
       <Sky />
+      {A.mist > 0 && <Mist />}
+      {A.shafts > 0 && <LightShafts />}
       <hemisphereLight ref={hemi} />
       <directionalLight
         ref={sun}
@@ -352,8 +375,10 @@ export default function World({ onSeat }: { onSeat: (s: SeatPrompt) => void }) {
       {TOWN.houses.map((h, i) => (
         <Building key={i} h={h} wallMaterial={m.houses[i]} m={m} />
       ))}
-      <Windmill m={m} />
-      <Paving material={m.path} />
+      {TOWN.windmill && <Windmill m={m} />}
+      {TOWN.pond ? <WildGround /> : <Paving material={m.path} />}
+      {TOWN.pond && <Pond />}
+      {TOWN.pond && <PondRim />}
       <Props swaps={swaps} />
       <Radio />
       <Trees swap={natureSwap} />
@@ -361,9 +386,9 @@ export default function World({ onSeat }: { onSeat: (s: SeatPrompt) => void }) {
       <Fireflies />
       <Birds />
       <Campfire swap={natureSwap} />
-      <FountainJet />
+      {!TOWN.pond && <FountainJet />}
       <LampPosts m={m} lights={lamps} />
-      <Dog />
+      <Animal />
       <Player onSeat={onSeat} />
     </>
   );

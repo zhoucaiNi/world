@@ -11,7 +11,8 @@ import { night, palette, mixPair } from "./theme";
 // the basin water is flat at 0.35 and the pillar's top is at 1.2.
 const BASIN_Y = 0.14 * MODULE;
 const SPOUT_Y = 0.48 * MODULE;
-const [FX, FZ] = TOWN.props.find((p) => p.kind === "fountain")!.at;
+// The Jurassic park has a watering hole (Pond.tsx) at the same centre instead of a fountain, so the sound stays put.
+const [FX, FZ] = TOWN.props.find((p) => p.kind === "fountain")?.at ?? TOWN.pond!.at;
 export const FOUNTAIN_AT: [number, number] = [FX, FZ];
 
 const GRAVITY = 5; // floaty on purpose: a slow, soft arc

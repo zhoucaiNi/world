@@ -2,10 +2,15 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useGLTF } from "@react-three/drei";
 import {
   CanvasTexture, Color, InstancedMesh, Matrix4, Mesh, Quaternion, Vector3,
-  type BufferGeometry, type Material, type Object3D, type Texture,
+  type BufferGeometry, type Material, type MeshStandardMaterial, type Object3D, type Texture,
 } from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { RoofTone } from "./town";
+import { WORLD } from "./worldConfig";
+import { night } from "./theme";
+import { STYLE } from "./jurassicStyle";
+
+const JURASSIC = WORLD.id === "jurassic";
 
 // Models from Kenney's Fantasy Town Kit 2.0 and Nature Kit (CC0, kenney.nl).
 // Only the pieces we use are copied into public/models; licences sit beside them.
@@ -59,6 +64,7 @@ function mergeShared(geos: BufferGeometry[]): BufferGeometry {
   const ready = geos.map((g) => {
     const h = mixed && g.index ? g.toNonIndexed() : g;
     for (const a of Object.keys(h.attributes)) if (!keep.includes(a)) h.deleteAttribute(a);
+    h.morphAttributes = {}; // a few CC0 models carry unused morph targets; a merged static mesh has no influences to drive them
     return h;
   });
   const merged = mergeGeometries(ready);
@@ -103,7 +109,7 @@ export function Batch({ items }: { items: Placement[] }) {
 // texture). These are the swatches the house pieces use, re-hued for the pastel town; each keeps
 // its original light-to-dark gradient.
 export type Swatch = [col: number, row: number, hex: string];
-const KIT_RECOLOR: Swatch[] = [
+const TOWN_RECOLOR: Swatch[] = [
   [1, 2, "#f6ead8"], // wall plaster (also lantern bodies, chimneys) -> cream, tinted per house
   [4, 3, "#c49a78"], // timber frame -> soft wood
   [5, 3, "#d4b896"], // timber wall panels and doors -> light oak, so the per-house pastel tint warms it instead of reddening it
@@ -111,12 +117,28 @@ const KIT_RECOLOR: Swatch[] = [
   [7, 3, "#b8aca2"], // chimney cap / lantern top
 ];
 
+// The park's visitor buildings: warm poured concrete, dark tinted glass for the upper-floor panels and doors,
+// thatch-brown domes for the terracotta roofs, and a teal roof for the sage ones.
+const JURASSIC_RECOLOR: Swatch[] = [
+  [1, 2, "#e6dcc6"],
+  [4, 3, "#6a5a48"],
+  [5, 3, "#7f9a92"],
+  [1, 3, "#a2814e"],
+  [7, 3, "#8e8a7c"],
+];
+const KIT_RECOLOR = JURASSIC ? JURASSIC_RECOLOR : TOWN_RECOLOR;
+
 /** The roof-tile swatch per roof tone; terracotta is the default map. */
-export const ROOF_SWATCH: Record<RoofTone, Swatch[]> = { terracotta: [], sage: [[1, 3, "#8db5a6"]] };
+export const ROOF_SWATCH: Record<RoofTone, Swatch[]> = { terracotta: [], sage: [[1, 3, JURASSIC ? "#3f8a82" : "#8db5a6"]] };
 
 // Props share the house swatches for other parts: (1,2) is also rock and fountain stone, (1,3) the
 // green awning and banner, (0,3) the red awning and banner, (3,3) the hedge leaves.
-export const PROP_SWATCHES: Swatch[] = [
+export const PROP_SWATCHES: Swatch[] = JURASSIC ? [
+  [1, 2, "#cdc6b4"],
+  [1, 3, "#6f8f5c"], // canvas awnings: olive and khaki
+  [0, 3, "#c9a45f"],
+  [3, 3, "#8fb98a"],
+] : [
   [1, 2, "#d3c9bc"],
   [1, 3, "#8db5a6"],
   [0, 3, "#d98276"],
@@ -223,3 +245,46 @@ export function Scatter({ url, spots, swap }: { url: string; spots: Spot[]; swap
     </>
   );
 }
+
+// Jurassic props come from their own models (poly.pizza, CC0), each with its own materials. Every original
+// material is cloned once, made matte, and darkened toward night by the shared `night` value.
+const NIGHT_TINT = new Color("#7682ad");
+const AMBER = new Color(STYLE.amber);
+const jurassicMaterials = new Map<Material, Material>();
+
+const JEEP_BODY = new Color("#c2a14e"); // the tour jeep's white paint
+const FLAG = new Color("#c9b27a"); // the watchtowers' red pennants
+
+export const jurassicSwap: Swap = (orig, mesh) => {
+  let m = jurassicMaterials.get(orig);
+  if (!m) {
+    m = orig.clone();
+    const std = m as MeshStandardMaterial;
+    std.metalness = 0;
+    std.roughness = 1;
+    std.flatShading = true; // one flat-shaded look for every Jurassic prop (see jurassicStyle.ts)
+    const base = std.color.clone();
+    if (orig.name === "Pink") { // the crystal model is magenta (colour and vertex colours); ours is amber
+      std.vertexColors = false;
+      base.copy(AMBER);
+    }
+    else if (orig.name === "White" && mesh.name.startsWith("SUV_")) base.copy(JEEP_BODY);
+    else if (orig.name === "cloth") base.set("#7f8a5c"); // the field tent: olive canvas, not toy red
+    else if (mesh.name === "Barrel") { // the atlas paints the drums blue and brown; make them olive-drab field drums
+      std.map = null;
+      base.set("#6b7650");
+    } else if (mesh.name.startsWith("Environment_LargeBones")) { // fossil ribs: ivory, not the atlas's salmon pink
+      std.map = null;
+      base.set(STYLE.bone);
+    } else if (mesh.name.startsWith("Rock_")) { // the rocks' atlas is rust orange; make them weathered grey-brown stone
+      std.map = null;
+      std.flatShading = true;
+      base.set(STYLE.rock);
+    }
+    else if (orig.name === "Main" && mesh.name.startsWith("WatchTower")) base.copy(FLAG);
+    const mix = new Color();
+    m.onBeforeRender = () => std.color.copy(mix.copy(base).lerp(NIGHT_TINT, night.value * 0.55));
+    jurassicMaterials.set(orig, m);
+  }
+  return m;
+};

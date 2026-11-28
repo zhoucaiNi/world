@@ -1,4 +1,5 @@
 import { Color } from "three";
+import { WORLD } from "./worldConfig";
 
 // Day (soft pastel diorama) blends into night (night town) by the visitor's local clock.
 // 07-17 day, 17-19 dusk, 19-05 night, 05-07 dawn. `?time=21.5` overrides the hour for previews.
@@ -37,7 +38,7 @@ export function syncUiTheme(t: number) {
 syncUiTheme(night.value); // before first render, so the veil never flashes the wrong theme
 
 /** Pairs of [day, night] colours. */
-export const palette = {
+const basePalette = {
   sky: ["#f6e3d3", "#1a2444"],
   skyTop: ["#9fc8ea", "#0a1028"],
   ground: ["#b9cfa6", "#2c4157"],
@@ -67,6 +68,7 @@ export const palette = {
   birdTaupe: ["#9a8068", "#3a3042"],
   dogLight: ["#fff4e4", "#b4c0d8"],
 } as const;
+export const palette: typeof basePalette = { ...basePalette, ...WORLD.palette };
 
 export function mixPair(pair: readonly [string, string], t: number, out = new Color()) {
   return out.set(pair[0]).lerp(new Color(pair[1]), t);

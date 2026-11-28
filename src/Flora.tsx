@@ -6,11 +6,11 @@ import {
 import { seeded } from "./town";
 import { grassMaterial, wind } from "./Grass";
 
-type Spot = [x: number, z: number, rotation: number, scale: number];
+export type Spot = [x: number, z: number, rotation: number, scale: number];
 type Rgb = [number, number, number];
 
 /** Vertex soup shared by every plant part; `stem` is 1 where a flower's stem colour replaces the bloom colour. */
-class Parts {
+export class Parts {
   pos: number[] = [];
   nrm: number[] = [];
   col: number[] = [];
@@ -166,7 +166,7 @@ export function bushMaterial(): MeshStandardMaterial {
   return grassMaterial(0.5);
 }
 
-function Plants({ spots, material, geometry, tint }: {
+export function Plants({ spots, material, geometry, tint }: {
   spots: Spot[]; material: MeshStandardMaterial; geometry: () => BufferGeometry; tint: number;
 }) {
   const geo = useMemo(geometry, [geometry]);

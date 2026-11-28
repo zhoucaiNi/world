@@ -7,6 +7,7 @@
 // own music and turns everything else down; the radio site steps aside while it does (see radioStream.ts).
 
 import { followRadio } from "./radioStream";
+import { WORLD } from "./worldConfig";
 
 type Mix = { fire: number; fountain: number; night: number }; // fire, fountain: 0..1 closeness
 type Play =
@@ -16,14 +17,14 @@ type LayerSpec = { file: string; peak: number; level: (m: Mix) => number; play: 
 
 const LOOP: Play = { kind: "loop" };
 const LAYERS = {
-  musicDay: { file: "/sounds/music-day.m4a", peak: 0.5, level: ({ fire, night }) => (1 - night) * (1 - fire * fire), play: LOOP },
-  musicNight: { file: "/sounds/music-night.m4a", peak: 0.45, level: ({ fire, night }) => night * (1 - fire * fire), play: LOOP },
-  guitar: { file: "/sounds/guitar.m4a", peak: 0.45, level: ({ fire }) => fire * fire, play: LOOP },
-  fire: { file: "/sounds/fire.m4a", peak: 0.7, level: ({ fire }) => fire, play: LOOP },
-  fountain: { file: "/sounds/fountain.m4a", peak: 0.5, level: ({ fountain, night }) => fountain * (1 - night * 0.4), play: LOOP },
-  crickets: { file: "/sounds/crickets.m4a", peak: 0.06, level: ({ fire, night }) => night * (1 - fire * 0.5), play: LOOP },
+  musicDay: { file: WORLD.sounds.musicDay, peak: 0.5, level: ({ fire, night }) => (1 - night) * (1 - fire * fire), play: LOOP },
+  musicNight: { file: WORLD.sounds.musicNight, peak: 0.45, level: ({ fire, night }) => night * (1 - fire * fire), play: LOOP },
+  guitar: { file: WORLD.sounds.guitar, peak: 0.45, level: ({ fire }) => fire * fire, play: LOOP },
+  fire: { file: WORLD.sounds.fire, peak: 0.7, level: ({ fire }) => fire, play: LOOP },
+  fountain: { file: WORLD.sounds.fountain, peak: 0.5, level: ({ fountain, night }) => fountain * (1 - night * 0.4), play: LOOP },
+  crickets: { file: WORLD.sounds.crickets, peak: 0.06, level: ({ fire, night }) => night * (1 - fire * 0.5), play: LOOP },
   birds: {
-    file: "/sounds/birds.m4a",
+    file: WORLD.sounds.birds,
     peak: 0.2,
     level: ({ fire, night }) => (1 - night) * (1 - fire * 0.7),
     play: { kind: "occasional", every: [20, 45], length: [2, 4] },
@@ -59,8 +60,12 @@ const RADIO_DUCK = 0.35; // everything but the radio plays at this fraction whil
 const rand = ([min, max]: [number, number]) => min + Math.random() * (max - min);
 
 async function load(c: AudioContext, layer: Layer, into: AudioNode) {
-  const res = await fetch(LAYERS[layer].file);
-  const buf = await c.decodeAudioData(await res.arrayBuffer());
+  let buf: AudioBuffer;
+  try {
+    const res = await fetch(LAYERS[layer].file);
+    if (!res.ok) return;
+    buf = await c.decodeAudioData(await res.arrayBuffer());
+  } catch { return; } // a missing or undecodable file silences just this layer
   const play: Play = LAYERS[layer].play;
   if (play.kind === "loop") {
     const src = c.createBufferSource();
