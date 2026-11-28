@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "flight:scrape": "node tools/scrape-sfo-flight-status.mjs",
+    "flight:test": "node --test tools/scrape-sfo-flight-status.test.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.114.0",
